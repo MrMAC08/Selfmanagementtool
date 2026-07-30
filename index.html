@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Whakaute - Reflection Board</title>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+
     <style>
         :root { 
             --bg: #f8f6f0; 
@@ -58,21 +63,22 @@
         
         .student-grid { 
             display: grid; 
-            grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)); 
-            gap: 6px; 
+            grid-template-columns: repeat(auto-fill, minmax(105px, 1fr)); 
+            gap: 5px; 
             align-items: start; 
         }
 
         .student-card {
             background: var(--panel); 
-            border: 1.5px solid var(--border); 
+            border: 2px solid var(--border); 
             border-radius: 8px;
-            padding: 6px; 
+            padding: 4px; 
             display: flex; 
             flex-direction: column; 
-            gap: 6px;
+            gap: 4px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.05); 
             transition: all 0.2s;
+            user-select: none;
         }
         .student-card.completed { 
             border-color: var(--success); 
@@ -81,20 +87,37 @@
         }
         .student-card.absent-card { opacity: 0.45; background: var(--absent); color: white; }
 
+        /* Highlight styles */
+        .student-card.manual-flagged {
+            border: 3px solid #f97316 !important;
+            box-shadow: 0 0 8px rgba(249, 115, 22, 0.5) !important;
+        }
+        .student-card.auto-flagged {
+            border: 3px solid #ef4444 !important;
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.7) !important;
+            animation: pulse-border 1.5s infinite alternate;
+        }
+
+        @keyframes pulse-border {
+            0% { box-shadow: 0 0 4px rgba(239, 68, 68, 0.4); }
+            100% { box-shadow: 0 0 12px rgba(239, 68, 68, 0.9); }
+        }
+
         .card-header { 
             display: flex; justify-content: space-between; align-items: center; 
-            border-bottom: 2px solid var(--border); padding-bottom: 4px; 
+            border-bottom: 2px solid var(--border); padding-bottom: 3px; 
         }
         .student-name { 
-            font-weight: 800; font-size: 0.85rem; white-space: nowrap; 
-            overflow: hidden; text-overflow: ellipsis; max-width: 100px; color: var(--text);
+            font-weight: 800; font-size: 0.82rem; white-space: nowrap; 
+            overflow: hidden; text-overflow: ellipsis; max-width: 80px; color: var(--text);
         }
-        .status-badge { font-size: 0.65rem; font-weight: bold; background: var(--success); color: white; padding: 1px 4px; border-radius: 4px; }
+        .status-badge { font-size: 0.6rem; font-weight: bold; background: var(--success); color: white; padding: 1px 3px; border-radius: 4px; }
+        .flag-badge { font-size: 0.6rem; font-weight: bold; background: var(--danger); color: white; padding: 1px 3px; border-radius: 4px; }
 
         .metric-block {
             background: var(--row-bg-1);
-            padding: 4px;
-            border-radius: 6px;
+            padding: 3px;
+            border-radius: 5px;
             border: 1px solid rgba(0,0,0,0.05);
         }
         .metric-block.task-block {
@@ -102,15 +125,15 @@
         }
 
         .metric-title { 
-            font-size: 0.62rem; font-weight: 800; text-transform: uppercase; 
-            letter-spacing: 0.5px; opacity: 0.8; margin-bottom: 3px; text-align: center; color: var(--text);
+            font-size: 0.58rem; font-weight: 800; text-transform: uppercase; 
+            letter-spacing: 0.4px; opacity: 0.8; margin-bottom: 2px; text-align: center; color: var(--text);
         }
         
-        .btn-group { display: flex; flex-direction: column; gap: 3px; width: 100%; }
+        .btn-group { display: flex; flex-direction: column; gap: 2px; width: 100%; }
 
         .btn-opt {
-            width: 100%; padding: 5px 2px; border-radius: 5px; border: 1px solid var(--border);
-            background: var(--panel); color: var(--text); font-size: 0.68rem; font-weight: 700;
+            width: 100%; padding: 4px 2px; border-radius: 4px; border: 1px solid var(--border);
+            background: var(--panel); color: var(--text); font-size: 0.65rem; font-weight: 700;
             cursor: pointer; text-align: center; line-height: 1.1; white-space: nowrap; 
             overflow: hidden; text-overflow: ellipsis;
             box-shadow: 0 1px 2px rgba(0,0,0,0.03);
@@ -123,16 +146,27 @@
         .btn-opt.selected-mid { background: var(--warning); color: white; border-color: var(--warning); font-weight: 800; }
         .btn-opt.selected-low { background: var(--danger); color: white; border-color: var(--danger); font-weight: 800; }
 
-        .card-actions { display: flex; gap: 3px; border-top: 1px dashed var(--border); padding-top: 4px; margin-top: 2px; }
-        .btn-action { font-size: 0.6rem; padding: 3px 0; border-radius: 4px; border: 1px solid var(--border); flex: 1; text-align: center; background: var(--panel); }
+        .card-actions { display: flex; gap: 3px; border-top: 1px dashed var(--border); padding-top: 3px; margin-top: 1px; }
+        .btn-action { font-size: 0.58rem; padding: 2px 0; border-radius: 4px; border: 1px solid var(--border); flex: 1; text-align: center; background: var(--panel); }
 
-        /* Modal & Tabs */
+        /* Modal & Summary Table Styles */
         .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: none; justify-content: center; align-items: center; padding: 15px; }
         .modal-card { background: var(--panel); width: 100%; max-width: 650px; padding: 16px; border-radius: 12px; border: 1px solid var(--border); max-height: 85vh; overflow-y: auto; }
         .tab-btn { padding: 6px 12px; font-size: 0.75rem; border-radius: 6px 6px 0 0; border: 1px solid var(--border); background: var(--bg); cursor: pointer; }
         .tab-btn.active { background: var(--panel); font-weight: bold; border-bottom: none; }
+        
         table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-        th, td { border: 1px solid var(--border); padding: 5px; text-align: center; font-size: 0.75rem; }
+        th, td { border: 1px solid var(--border); padding: 6px; text-align: center; font-size: 0.75rem; }
+
+        /* Summary Row Color Highlights */
+        .row-good { background-color: rgba(34, 197, 94, 0.18) !important; color: #14532d; font-weight: 600; }
+        .row-mid { background-color: rgba(245, 158, 11, 0.18) !important; color: #78350f; font-weight: 600; }
+        .row-bad { background-color: rgba(239, 68, 68, 0.18) !important; color: #7f1d1d; font-weight: 600; }
+        .row-absent { background-color: rgba(100, 116, 139, 0.15) !important; color: var(--absent); italic; }
+
+        body.dark-mode .row-good { background-color: rgba(34, 197, 94, 0.25) !important; color: #86efac; }
+        body.dark-mode .row-mid { background-color: rgba(245, 158, 11, 0.25) !important; color: #fde047; }
+        body.dark-mode .row-bad { background-color: rgba(239, 68, 68, 0.25) !important; color: #fca5a5; }
     </style>
 </head>
 <body>
@@ -182,21 +216,66 @@
 </div>
 
 <script>
-    let db = JSON.parse(localStorage.getItem('whakauteDirectV11')) || {
+    // ⚠️ REPLACE THIS BLOCK WITH YOUR FIREBASE CONFIG
+    const firebaseConfig = {
+        apiKey: "YOUR_API_KEY",
+        authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+        databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
+        projectId: "YOUR_PROJECT_ID",
+        storageBucket: "YOUR_PROJECT_ID.appspot.com",
+        messagingSenderId: "YOUR_SENDER_ID",
+        appId: "YOUR_APP_ID"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const dbRef = firebase.database().ref('whakaute_data');
+
+    let db = {
         regularNames: ["Alex", "Ben", "Charlie", "Daniel", "Emma", "Hana", "Jacob", "Liam", "Mia", "Noah", "Sophia", "Oliver", "Ava"],
         mathsNames: ["Alex", "Charlie", "Ethan", "Harper", "Isabella", "Lucas", "Mason", "Noah", "Oliver", "Sophia"],
         reflections: {}, 
         absentDay: {},
+        manualHighlights: {},
         darkMode: false
     };
 
-    function save() { localStorage.setItem('whakauteDirectV11', JSON.stringify(db)); }
+    dbRef.on('value', (snapshot) => {
+        const val = snapshot.val();
+        if (val) {
+            db = val;
+            if(!db.reflections) db.reflections = {};
+            if(!db.absentDay) db.absentDay = {};
+            if(!db.manualHighlights) db.manualHighlights = {};
+            loadView();
+        }
+    });
+
+    function save() { dbRef.set(db); }
     function toggleTheme() { db.darkMode = !db.darkMode; document.body.classList.toggle('dark-mode', db.darkMode); save(); }
     function getKey() { return document.getElementById('daySelect').value + "-" + document.getElementById('blockSelect').value; }
 
     function getCurrentRoster() {
         const isMaths = document.getElementById('blockSelect').value === "Maths";
         return isMaths ? (db.mathsNames || []) : (db.regularNames || []);
+    }
+
+    // Counts SC occurrences for a student on a specific day
+    function getSelfControlCountsForDay(name, day) {
+        let counts = { high: 0, low: 0 };
+        const blocks = ['Block 1', 'Block 2', 'Block 3', 'Maths'];
+        blocks.forEach(blk => {
+            const refKey = `${day}-${blk}`;
+            const sc = db.reflections[refKey]?.[name]?.sc;
+            if (sc === 'high') counts.high++;
+            if (sc === 'low') counts.low++;
+        });
+        return counts;
+    }
+
+    function toggleManualHighlight(name) {
+        if (!db.manualHighlights) db.manualHighlights = {};
+        db.manualHighlights[name] = !db.manualHighlights[name];
+        save();
     }
 
     function loadView() {
@@ -217,8 +296,20 @@
             const isAbsentBlock = data.absent;
             const isDone = data.sc && data.tc && !isAbsentBlock && !isAbsentDay;
 
+            const isManualFlagged = !!db.manualHighlights?.[name];
+            const scCounts = getSelfControlCountsForDay(name, day);
+            const isAutoFlagged = scCounts.low >= 3;
+
             const card = document.createElement('div');
-            card.className = `student-card ${isDone ? 'completed' : ''} ${(isAbsentBlock || isAbsentDay) ? 'absent-card' : ''}`;
+            
+            let cardClasses = ['student-card'];
+            if (isDone) cardClasses.push('completed');
+            if (isAbsentBlock || isAbsentDay) cardClasses.push('absent-card');
+            if (isAutoFlagged) cardClasses.push('auto-flagged');
+            else if (isManualFlagged) cardClasses.push('manual-flagged');
+
+            card.className = cardClasses.join(' ');
+            card.ondblclick = () => toggleManualHighlight(name);
 
             if (isAbsentDay || isAbsentBlock) {
                 card.innerHTML = `
@@ -238,10 +329,9 @@
                 card.innerHTML = `
                     <div class="card-header">
                         <span class="student-name" title="${name}">${name}</span>
-                        ${isDone ? '<span class="status-badge">DONE</span>' : ''}
+                        ${isAutoFlagged ? '<span class="flag-badge" title="3 Low Self-Controls Today!">⚠️ 3 LOW</span>' : (isDone ? '<span class="status-badge">DONE</span>' : '')}
                     </div>
 
-                    <!-- Metric 1: Self-Control (Earns Smileys) -->
                     <div class="metric-block">
                         <div class="metric-title">Self-Control</div>
                         <div class="btn-group">
@@ -251,7 +341,6 @@
                         </div>
                     </div>
 
-                    <!-- Metric 2: Tasks Completed -->
                     <div class="metric-block task-block">
                         <div class="metric-title">Tasks Completed</div>
                         <div class="btn-group">
@@ -273,6 +362,7 @@
 
     function setMetric(name, metric, val) {
         const key = getKey();
+        if (!db.reflections[key]) db.reflections[key] = {};
         if (!db.reflections[key][name]) db.reflections[key][name] = {};
         
         if (db.reflections[key][name][metric] === val) {
@@ -281,7 +371,6 @@
             db.reflections[key][name][metric] = val;
         }
         save();
-        loadView();
     }
 
     function toggleAbsent(name, type) {
@@ -289,13 +378,14 @@
         const key = getKey();
 
         if (type === 'day') {
+            if (!db.absentDay[day]) db.absentDay[day] = {};
             db.absentDay[day][name] = !db.absentDay[day][name];
         } else {
+            if (!db.reflections[key]) db.reflections[key] = {};
             if (!db.reflections[key][name]) db.reflections[key][name] = {};
             db.reflections[key][name].absent = !db.reflections[key][name].absent;
         }
         save();
-        loadView();
     }
 
     function openSetup() {
@@ -309,7 +399,6 @@
         db.mathsNames = document.getElementById('mathsInput').value.split(',').map(n => n.trim()).filter(n => n !== "").sort();
         save(); 
         document.getElementById('setupModal').style.display = 'none'; 
-        loadView();
     }
 
     function showSummary(mode) {
@@ -327,18 +416,23 @@
             roster.forEach(n => {
                 const isAbsentDay = db.absentDay[day]?.[n];
                 const d = db.reflections[key]?.[n] || {};
+                const scCounts = getSelfControlCountsForDay(n, day);
+
+                // Determine row color class based on daily counts
+                let rowClass = 'row-mid'; // Default Yellow (everything in between)
+                if (scCounts.high >= 2) rowClass = 'row-good'; // Green (>= 2 High)
+                if (scCounts.low >= 2) rowClass = 'row-bad'; // Red (>= 2 Low)
 
                 if (isAbsentDay) {
-                    html += `<tr><td><b>${n}</b></td><td colspan="3" style="color:var(--absent)">Absent Whole Day</td></tr>`;
+                    html += `<tr class="row-absent"><td><b>${n}</b></td><td colspan="3">Absent Whole Day</td></tr>`;
                 } else if (d.absent) {
-                    html += `<tr><td><b>${n}</b></td><td colspan="3" style="color:var(--absent)">Absent Block</td></tr>`;
+                    html += `<tr class="row-absent"><td><b>${n}</b></td><td colspan="3">Absent Block</td></tr>`;
                 } else {
                     let smileys = d.sc === 'high' ? 1 : 0;
-
                     let scText = d.sc === 'high' ? 'High' : (d.sc === 'reminders' ? 'Reminders' : (d.sc === 'low' ? 'Low' : '-'));
                     let tcText = d.tc === 'all' ? 'All' : (d.tc === 'some' ? 'Some' : (d.tc === 'none' ? 'None' : '-'));
 
-                    html += `<tr>
+                    html += `<tr class="${rowClass}">
                         <td><b>${n}</b></td>
                         <td>${scText}</td>
                         <td>${tcText}</td>
@@ -348,27 +442,28 @@
             });
             html += `</table>`;
         } else {
-            /* Weekly Collated Smiley Sheet View (15 Max Target) */
+            /* Weekly View with Daily Performance Color Coding */
             html = `<table><tr><th>Student</th><th>Total Smileys Earned</th><th>Sheet Status (Target: 15)</th></tr>`;
-            
             const allStudents = Array.from(new Set([...(db.regularNames || []), ...(db.mathsNames || [])])).sort();
             
             allStudents.forEach(n => {
                 let totalSmileys = 0;
-
-                Object.keys(db.reflections).forEach(refKey => {
+                Object.keys(db.reflections || {}).forEach(refKey => {
                     const d = db.reflections[refKey]?.[n];
-                    if (d && !d.absent) {
-                        if (d.sc === 'high') totalSmileys++;
-                    }
+                    if (d && !d.absent && d.sc === 'high') totalSmileys++;
                 });
+
+                const scCounts = getSelfControlCountsForDay(n, day);
+                let rowClass = 'row-mid';
+                if (scCounts.high >= 2) rowClass = 'row-good';
+                if (scCounts.low >= 2) rowClass = 'row-bad';
 
                 const sheetComplete = totalSmileys >= 15;
                 const statusBadge = sheetComplete 
                     ? `<span style="color:var(--success); font-weight:bold;">🎉 SHEET COMPLETE!</span>` 
                     : `${totalSmileys} / 15 (${Math.round((totalSmileys/15)*100)}%)`;
 
-                html += `<tr>
+                html += `<tr class="${rowClass}">
                     <td><b>${n}</b></td>
                     <td><b>${totalSmileys} 😊</b></td>
                     <td>${statusBadge}</td>
