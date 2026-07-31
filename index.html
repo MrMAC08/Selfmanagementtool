@@ -87,7 +87,6 @@
         }
         .student-card.absent-card { opacity: 0.45; background: var(--absent); color: white; }
 
-        /* Auto-flagged styles */
         .student-card.auto-flagged {
             border: 3px solid #ef4444 !important;
             box-shadow: 0 0 10px rgba(239, 68, 68, 0.7) !important;
@@ -148,26 +147,23 @@
         .btn-action.reflect-btn { background: #fff7ed; color: #ea580c; border-color: #fdba74; }
         .btn-action.reflect-btn:hover { background: #ea580c; color: white; }
 
-        /* Modal & Summary Table Styles */
         .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; display: none; justify-content: center; align-items: center; padding: 15px; }
-        .modal-card { background: var(--panel); width: 100%; max-width: 500px; padding: 18px; border-radius: 12px; border: 1px solid var(--border); max-height: 85vh; overflow-y: auto; }
+        .modal-card { background: var(--panel); width: 100%; max-width: 550px; padding: 18px; border-radius: 12px; border: 1px solid var(--border); max-height: 85vh; overflow-y: auto; }
         .tab-btn { padding: 6px 12px; font-size: 0.75rem; border-radius: 6px 6px 0 0; border: 1px solid var(--border); background: var(--bg); cursor: pointer; }
         .tab-btn.active { background: var(--panel); font-weight: bold; border-bottom: none; }
         
         table { width: 100%; border-collapse: collapse; margin-top: 8px; }
         th, td { border: 1px solid var(--border); padding: 6px; text-align: center; font-size: 0.75rem; }
 
-        /* Summary Row Color Highlights */
         .row-good { background-color: rgba(34, 197, 94, 0.18) !important; color: #14532d; font-weight: 600; }
         .row-mid { background-color: rgba(245, 158, 11, 0.18) !important; color: #78350f; font-weight: 600; }
         .row-bad { background-color: rgba(239, 68, 68, 0.18) !important; color: #7f1d1d; font-weight: 600; }
-        .row-absent { background-color: rgba(100, 116, 139, 0.15) !important; color: var(--absent); italic; }
+        .row-absent { background-color: rgba(100, 116, 139, 0.15) !important; color: var(--absent); }
 
         body.dark-mode .row-good { background-color: rgba(34, 197, 94, 0.25) !important; color: #86efac; }
         body.dark-mode .row-mid { background-color: rgba(245, 158, 11, 0.25) !important; color: #fde047; }
         body.dark-mode .row-bad { background-color: rgba(239, 68, 68, 0.25) !important; color: #fca5a5; }
 
-        /* Reflection Form Styles */
         .reflection-field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; text-align: left; }
         .reflection-field label { font-size: 0.8rem; font-weight: 700; color: var(--text); }
         .reflection-field select, .reflection-field textarea {
@@ -175,6 +171,18 @@
             background: var(--panel); color: var(--text);
         }
         .reflection-field textarea { resize: vertical; height: 65px; }
+
+        .weekly-reflection-box {
+            background: rgba(255, 255, 255, 0.6);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 6px;
+            margin-top: 4px;
+            font-size: 0.7rem;
+            text-align: left;
+        }
+        body.dark-mode .weekly-reflection-box { background: rgba(0, 0, 0, 0.3); }
+        .weekly-reflection-box summary { cursor: pointer; font-weight: bold; color: #8b5cf6; }
     </style>
 </head>
 <body>
@@ -187,6 +195,7 @@
         <button onclick="openSetup()">⚙️ Setup</button>
     </div>
     <div style="display:flex; gap:6px;">
+        <button onclick="clearCurrentBlockData()" style="background:#78716c; color:white; border:none;">🗑️ Clear Block</button>
         <button onclick="showSummary('block')" class="btn-primary">📊 Summary</button>
         <button id="exportBtn" onclick="exportToGoogleSheets()" class="btn-success">🚀 Export</button>
     </div>
@@ -196,7 +205,7 @@
     <div class="student-grid" id="studentGrid"></div>
 </div>
 
-<!-- Student Reflection Form Modal (Opens directly on Laptop) -->
+<!-- Student Reflection Form Modal -->
 <div id="reflectionModal" class="modal">
     <div class="modal-card">
         <h2 style="margin-top:0; color:var(--primary); text-align:center; font-size:1.2rem;">💭 Whakaute Reflection Form</h2>
@@ -249,7 +258,7 @@
     <div class="modal-card">
         <div style="display:flex; gap:4px; border-bottom:1px solid var(--border); margin-bottom:10px;">
             <button id="tabBlock" class="tab-btn active" onclick="showSummary('block')">Block Summary</button>
-            <button id="tabWeekly" class="tab-btn" onclick="showSummary('weekly')">Weekly Smiley Sheet (15 Max)</button>
+            <button id="tabWeekly" class="tab-btn" onclick="showSummary('weekly')">Weekly Summary & Reflections</button>
         </div>
         <div id="summaryContent"></div>
         <button onclick="document.getElementById('summaryModal').style.display='none'" class="btn-primary" style="width:100%; padding:8px; margin-top:12px;">Close</button>
@@ -267,6 +276,7 @@
         <textarea id="mathsInput" style="width:100%; height:80px; padding:6px; border-radius:6px; border:1px solid var(--border); margin-bottom:8px;"></textarea>
         
         <button onclick="saveSettings()" class="btn-primary" style="width:100%; padding:8px; margin-top:8px;">Save Rosters</button>
+        <button onclick="resetAllDataForNewWeek()" style="background:var(--danger); color:white; border:none; width:100%; padding:8px; margin-top:12px; font-weight:bold;">⚠️ Clear Entire Week / Reset All</button>
         <button onclick="document.getElementById('setupModal').style.display='none'" style="width:100%; padding:6px; margin-top:4px;">Cancel</button>
     </div>
 </div>
@@ -327,7 +337,6 @@
         return counts;
     }
 
-    /* Open Reflection Form for a specific student */
     function openReflectionForm(name) {
         activeStudentForReflection = name;
         document.getElementById('reflectionStudentHeader').innerText = `Student: ${name}`;
@@ -367,6 +376,16 @@
         closeReflectionModal();
     }
 
+    function clearStudentReflection(name) {
+        const key = getKey();
+        if (db.reflections[key] && db.reflections[key][name]) {
+            delete db.reflections[key][name].reflectionSubmitted;
+            delete db.reflections[key][name].reflectionAnswers;
+            save();
+            document.getElementById('responseViewerModal').style.display = 'none';
+        }
+    }
+
     function openResponseViewer(name) {
         const key = getKey();
         const resp = db.reflections[key]?.[name]?.reflectionAnswers;
@@ -377,8 +396,31 @@
             <p><b>1. Behavior/Challenge:</b><br>${resp.q1}</p>
             <p><b>2. Focus Value:</b><br>${resp.q2}</p>
             <p><b>3. Action Steps:</b><br>${resp.q3}</p>
+            <div style="display:flex; gap:6px; margin-top:16px;">
+                <button onclick="clearStudentReflection('${name}')" style="background:var(--danger); color:white; border:none; padding:8px; border-radius:6px; flex:1; font-weight:bold; cursor:pointer;">🗑️ Clear Response</button>
+            </div>
         `;
         document.getElementById('responseViewerModal').style.display = 'flex';
+    }
+
+    function clearCurrentBlockData() {
+        const key = getKey();
+        if (confirm(`Are you sure you want to clear all data for ${key}? This will remove all ratings and reflections for this block.`)) {
+            if (db.reflections[key]) {
+                delete db.reflections[key];
+                save();
+            }
+        }
+    }
+
+    function resetAllDataForNewWeek() {
+        if (confirm("⚠️ WARNING: This will delete ALL weekly smiley data, ratings, and student reflections for EVERY day. Are you sure?")) {
+            db.reflections = {};
+            db.absentDay = {};
+            save();
+            document.getElementById('setupModal').style.display = 'none';
+            alert("All weekly data cleared!");
+        }
     }
 
     function loadView() {
@@ -552,14 +594,23 @@
             });
             html += `</table>`;
         } else {
-            html = `<table><tr><th>Student</th><th>Total Smileys Earned</th><th>Sheet Status (Target: 15)</th></tr>`;
+            html = `<table><tr><th>Student</th><th>Total Smileys Earned</th><th>Weekly Reflections Completed</th></tr>`;
             const allStudents = Array.from(new Set([...(db.regularNames || []), ...(db.mathsNames || [])])).sort();
             
             allStudents.forEach(n => {
                 let totalSmileys = 0;
+                let studentWeeklyReflections = [];
+
                 Object.keys(db.reflections || {}).forEach(refKey => {
                     const d = db.reflections[refKey]?.[n];
                     if (d && !d.absent && d.sc === 'high') totalSmileys++;
+
+                    if (d && d.reflectionAnswers) {
+                        studentWeeklyReflections.push({
+                            blockKey: refKey,
+                            answers: d.reflectionAnswers
+                        });
+                    }
                 });
 
                 const scCounts = getSelfControlCountsForDay(n, day);
@@ -569,13 +620,33 @@
 
                 const sheetComplete = totalSmileys >= 15;
                 const statusBadge = sheetComplete 
-                    ? `<span style="color:var(--success); font-weight:bold;">🎉 SHEET COMPLETE!</span>` 
-                    : `${totalSmileys} / 15 (${Math.round((totalSmileys/15)*100)}%)`;
+                    ? `<span style="color:var(--success); font-weight:bold;">🎉 COMPLETE! (${totalSmileys}/15)</span>` 
+                    : `${totalSmileys} / 15 😊`;
+
+                let reflectionsHtml = `<span style="opacity:0.6;">No reflections recorded</span>`;
+                if (studentWeeklyReflections.length > 0) {
+                    reflectionsHtml = `<details class="weekly-reflection-box">
+                        <summary>💭 View ${studentWeeklyReflections.length} Reflection(s)</summary>
+                        <div style="margin-top:6px; display:flex; flex-direction:column; gap:6px;">`;
+                    
+                    studentWeeklyReflections.forEach(item => {
+                        const ans = item.answers;
+                        reflectionsHtml += `
+                            <div style="border-bottom:1px dashed var(--border); padding-bottom:4px;">
+                                <b>📌 ${item.blockKey} (${ans.timestamp || ''})</b><br>
+                                <b>Issue:</b> ${ans.q1}<br>
+                                <b>Focus Value:</b> ${ans.q2}<br>
+                                <b>Action:</b> ${ans.q3}
+                            </div>`;
+                    });
+
+                    reflectionsHtml += `</div></details>`;
+                }
 
                 html += `<tr class="${rowClass}">
                     <td><b>${n}</b></td>
-                    <td><b>${totalSmileys} 😊</b></td>
-                    <td>${statusBadge}</td>
+                    <td><b>${statusBadge}</b></td>
+                    <td style="text-align:left;">${reflectionsHtml}</td>
                 </tr>`;
             });
             html += `</table>`;
