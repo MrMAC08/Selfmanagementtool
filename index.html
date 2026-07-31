@@ -58,6 +58,17 @@
         }
         .btn-primary { background: var(--primary); color: white; border: none; }
         .btn-success { background: var(--success); color: white; border: none; }
+        .btn-submit-block { background: #0284c7; color: white; border: none; font-weight: 800; font-size: 0.85rem; padding: 5px 12px; }
+
+        .block-status-bar {
+            background: var(--panel); border: 1px solid var(--border); padding: 4px 10px;
+            border-radius: 6px; margin-bottom: 6px; display: flex; justify-content: space-between;
+            align-items: center; font-size: 0.75rem; font-weight: 700;
+        }
+        .status-tag-active { color: var(--warning); background: #fef3c7; padding: 2px 6px; border-radius: 4px; border: 1px solid #fde047; }
+        .status-tag-submitted { color: var(--success); background: #dcfce7; padding: 2px 6px; border-radius: 4px; border: 1px solid #86efac; }
+        body.dark-mode .status-tag-active { background: #451a03; color: #fbbf24; border-color: #78350f; }
+        body.dark-mode .status-tag-submitted { background: #052e16; color: #4ade80; border-color: #14532d; }
 
         .board-container { flex-grow: 1; overflow-y: auto; overflow-x: auto; padding-bottom: 6px; }
         
@@ -79,6 +90,7 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.05); 
             transition: all 0.2s;
             user-select: none;
+            cursor: pointer;
         }
         .student-card.completed { 
             border-color: var(--success); 
@@ -86,6 +98,12 @@
             box-shadow: 0 0 0 1px var(--success);
         }
         .student-card.absent-card { opacity: 0.45; background: var(--absent); color: white; }
+
+        .student-card.manual-highlight {
+            border: 3px solid #dc2626 !important;
+            box-shadow: 0 0 12px rgba(220, 38, 38, 0.7) !important;
+            background: rgba(220, 38, 38, 0.05) !important;
+        }
 
         .student-card.auto-flagged {
             border: 3px solid #ef4444 !important;
@@ -107,6 +125,7 @@
             overflow: hidden; text-overflow: ellipsis; max-width: 70px; color: var(--text);
         }
         .status-badge { font-size: 0.6rem; font-weight: bold; background: var(--success); color: white; padding: 1px 3px; border-radius: 4px; }
+        .default-badge { font-size: 0.6rem; font-weight: bold; background: #0284c7; color: white; padding: 1px 3px; border-radius: 4px; }
         .flag-badge { font-size: 0.6rem; font-weight: bold; background: var(--danger); color: white; padding: 1px 3px; border-radius: 4px; cursor: pointer; }
         .response-badge { font-size: 0.6rem; font-weight: bold; background: #8b5cf6; color: white; padding: 1px 3px; border-radius: 4px; cursor: pointer; }
 
@@ -194,11 +213,17 @@
         <button onclick="toggleTheme()">🌓 Theme</button>
         <button onclick="openSetup()">⚙️ Setup</button>
     </div>
-    <div style="display:flex; gap:6px;">
+    <div style="display:flex; gap:6px; align-items:center;">
+        <button onclick="submitCurrentBlock()" id="submitBlockBtn" class="btn-submit-block">✅ Submit & Complete Block</button>
         <button onclick="clearCurrentBlockData()" style="background:#78716c; color:white; border:none;">🗑️ Clear Block</button>
         <button onclick="showSummary('block')" class="btn-primary">📊 Summary</button>
         <button id="exportBtn" onclick="exportToGoogleSheets()" class="btn-success">🚀 Export</button>
     </div>
+</div>
+
+<div class="block-status-bar" id="blockStatusBar">
+    <span id="blockStatusText">Status: In Progress</span>
+    <span id="blockStatusTag" class="status-tag-active">LIVE SESSION</span>
 </div>
 
 <div class="board-container">
@@ -301,6 +326,7 @@
         mathsNames: ["Alex", "Charlie", "Ethan", "Harper", "Isabella", "Lucas", "Mason", "Noah", "Oliver", "Sophia"],
         reflections: {}, 
         absentDay: {},
+        blockSubmitted: {},
         darkMode: false
     };
 
@@ -312,6 +338,7 @@
             db = val;
             if(!db.reflections) db.reflections = {};
             if(!db.absentDay) db.absentDay = {};
+            if(!db.blockSubmitted) db.blockSubmitted = {};
             loadView();
         }
     });
@@ -325,16 +352,67 @@
         return isMaths ? (db.mathsNames || []) : (db.regularNames || []);
     }
 
+    function isBlockSubmitted(refKey) {
+        return !!db.blockSubmitted?.[refKey];
+    }
+
+    // SC evaluates to 'high' default ONLY IF block is submitted
+    function getEffectiveSC(refKey, name, day) {
+        if (db.absentDay[day]?.[name]) return 'absent';
+        const d = db.reflections[refKey]?.[name];
+        if (d?.absent) return 'absent';
+        if (d?.sc) return d.sc;
+        
+        return isBlockSubmitted(refKey) ? 'high' : null;
+    }
+
+    // TC evaluates to 'all' default ONLY IF block is submitted
+    function getEffectiveTC(refKey, name, day) {
+        if (db.absentDay[day]?.[name]) return 'absent';
+        const d = db.reflections[refKey]?.[name];
+        if (d?.absent) return 'absent';
+        if (d?.tc) return d.tc;
+        
+        return isBlockSubmitted(refKey) ? 'all' : null;
+    }
+
     function getSelfControlCountsForDay(name, day) {
-        let counts = { high: 0, low: 0 };
+        let counts = { high: 0, low: 0, total: 0 };
         const blocks = ['Block 1', 'Block 2', 'Block 3', 'Maths'];
         blocks.forEach(blk => {
             const refKey = `${day}-${blk}`;
-            const sc = db.reflections[refKey]?.[name]?.sc;
+            const sc = getEffectiveSC(refKey, name, day);
             if (sc === 'high') counts.high++;
             if (sc === 'low') counts.low++;
+            if (sc && sc !== 'absent') counts.total++;
         });
         return counts;
+    }
+
+    function submitCurrentBlock() {
+        const key = getKey();
+        if (isBlockSubmitted(key)) {
+            if (confirm(`Block ${key} is already submitted. Do you want to reopen it for editing?`)) {
+                if (!db.blockSubmitted) db.blockSubmitted = {};
+                db.blockSubmitted[key] = false;
+                save();
+            }
+        } else {
+            if (confirm(`Submit and complete ${key}?\n\nAll unclicked cards will automatically default to High Self-Control and All Tasks, awarding their smileys.`)) {
+                if (!db.blockSubmitted) db.blockSubmitted = {};
+                db.blockSubmitted[key] = true;
+                save();
+            }
+        }
+    }
+
+    function toggleManualHighlight(name) {
+        const key = getKey();
+        if (!db.reflections[key]) db.reflections[key] = {};
+        if (!db.reflections[key][name]) db.reflections[key][name] = {};
+
+        db.reflections[key][name].manualHighlight = !db.reflections[key][name].manualHighlight;
+        save();
     }
 
     function openReflectionForm(name) {
@@ -405,18 +483,18 @@
 
     function clearCurrentBlockData() {
         const key = getKey();
-        if (confirm(`Are you sure you want to clear all data for ${key}? This will remove all ratings and reflections for this block.`)) {
-            if (db.reflections[key]) {
-                delete db.reflections[key];
-                save();
-            }
+        if (confirm(`Are you sure you want to clear all data for ${key}? This will reset block submission state, ratings, and reflections.`)) {
+            if (db.reflections[key]) delete db.reflections[key];
+            if (db.blockSubmitted && db.blockSubmitted[key]) delete db.blockSubmitted[key];
+            save();
         }
     }
 
     function resetAllDataForNewWeek() {
-        if (confirm("⚠️ WARNING: This will delete ALL weekly smiley data, ratings, and student reflections for EVERY day. Are you sure?")) {
+        if (confirm("⚠️ WARNING: This will delete ALL weekly smiley data, ratings, block completions, and student reflections for EVERY day. Are you sure?")) {
             db.reflections = {};
             db.absentDay = {};
+            db.blockSubmitted = {};
             save();
             document.getElementById('setupModal').style.display = 'none';
             alert("All weekly data cleared!");
@@ -428,9 +506,29 @@
         const key = getKey();
         const day = document.getElementById('daySelect').value;
         const roster = getCurrentRoster();
+        const submitted = isBlockSubmitted(key);
 
         if (!db.reflections[key]) db.reflections[key] = {};
         if (!db.absentDay[day]) db.absentDay[day] = {};
+
+        // Update Block Status Bar & Button
+        const statusText = document.getElementById('blockStatusText');
+        const statusTag = document.getElementById('blockStatusTag');
+        const submitBtn = document.getElementById('submitBlockBtn');
+
+        if (submitted) {
+            statusText.innerText = `Status: Submitted & Completed (${key})`;
+            statusTag.innerText = "LOCKED IN / SMILEYS CREDITED";
+            statusTag.className = "status-tag-submitted";
+            submitBtn.innerText = "🔓 Re-open Block";
+            submitBtn.style.background = "#475569";
+        } else {
+            statusText.innerText = `Status: Live Session (${key})`;
+            statusTag.innerText = "IN PROGRESS";
+            statusTag.className = "status-tag-active";
+            submitBtn.innerText = "✅ Submit & Complete Block";
+            submitBtn.style.background = "#0284c7";
+        }
 
         const grid = document.getElementById('studentGrid');
         grid.innerHTML = '';
@@ -439,7 +537,13 @@
             const data = db.reflections[key][name] || {};
             const isAbsentDay = db.absentDay[day][name];
             const isAbsentBlock = data.absent;
-            const isDone = data.sc && data.tc && !isAbsentBlock && !isAbsentDay;
+            
+            const effSC = getEffectiveSC(key, name, day);
+            const effTC = getEffectiveTC(key, name, day);
+            
+            const hasManualSelection = !!(data.sc || data.tc);
+            const isDone = (hasManualSelection || submitted) && !isAbsentBlock && !isAbsentDay;
+            const isHighlighted = !!data.manualHighlight;
 
             const scCounts = getSelfControlCountsForDay(name, day);
             const isAutoFlagged = scCounts.low >= 3;
@@ -451,16 +555,20 @@
             if (isDone) cardClasses.push('completed');
             if (isAbsentBlock || isAbsentDay) cardClasses.push('absent-card');
             if (isAutoFlagged) cardClasses.push('auto-flagged');
+            if (isHighlighted) cardClasses.push('manual-highlight');
 
             card.className = cardClasses.join(' ');
+            card.ondblclick = () => toggleManualHighlight(name);
 
             let headerBadges = '';
             if (hasSubmittedResponse) {
-                headerBadges = `<span class="response-badge" onclick="openResponseViewer('${name}')">📩 View</span>`;
+                headerBadges = `<span class="response-badge" onclick="event.stopPropagation(); openResponseViewer('${name}')">📩 View</span>`;
             } else if (isAutoFlagged) {
-                headerBadges = `<span class="flag-badge" onclick="openReflectionForm('${name}')" title="Click to fill out reflection">⚠️ 3 LOW</span>`;
-            } else if (isDone) {
+                headerBadges = `<span class="flag-badge" onclick="event.stopPropagation(); openReflectionForm('${name}')" title="Click to fill out reflection">⚠️ 3 LOW</span>`;
+            } else if (hasManualSelection) {
                 headerBadges = `<span class="status-badge">DONE</span>`;
+            } else if (submitted && !isAbsentDay && !isAbsentBlock) {
+                headerBadges = `<span class="default-badge">DEFAULT</span>`;
             }
 
             if (isAbsentDay || isAbsentBlock) {
@@ -473,11 +581,14 @@
                         ${isAbsentDay ? 'Absent All Day' : 'Absent This Block'}
                     </div>
                     <div class="card-actions">
-                        <button class="btn-action" onclick="toggleAbsent('${name}', 'block')">Un-Blk</button>
-                        <button class="btn-action" onclick="toggleAbsent('${name}', 'day')">Un-Day</button>
+                        <button class="btn-action" onclick="event.stopPropagation(); toggleAbsent('${name}', 'block')">Un-Blk</button>
+                        <button class="btn-action" onclick="event.stopPropagation(); toggleAbsent('${name}', 'day')">Un-Day</button>
                     </div>
                 `;
             } else {
+                const displaySC = effSC;
+                const displayTC = effTC;
+
                 card.innerHTML = `
                     <div class="card-header">
                         <span class="student-name" title="${name}">${name}</span>
@@ -487,25 +598,25 @@
                     <div class="metric-block">
                         <div class="metric-title">Self-Control</div>
                         <div class="btn-group">
-                            <button class="btn-opt ${data.sc === 'high' ? 'selected-good' : ''}" onclick="setMetric('${name}', 'sc', 'high')">High Self-Control</button>
-                            <button class="btn-opt ${data.sc === 'reminders' ? 'selected-mid' : ''}" onclick="setMetric('${name}', 'sc', 'reminders')">Needed Reminders</button>
-                            <button class="btn-opt ${data.sc === 'low' ? 'selected-low' : ''}" onclick="setMetric('${name}', 'sc', 'low')">Low Self-Control</button>
+                            <button class="btn-opt ${displaySC === 'high' ? 'selected-good' : ''}" onclick="event.stopPropagation(); setMetric('${name}', 'sc', 'high')">High Self-Control</button>
+                            <button class="btn-opt ${displaySC === 'reminders' ? 'selected-mid' : ''}" onclick="event.stopPropagation(); setMetric('${name}', 'sc', 'reminders')">Needed Reminders</button>
+                            <button class="btn-opt ${displaySC === 'low' ? 'selected-low' : ''}" onclick="event.stopPropagation(); setMetric('${name}', 'sc', 'low')">Low Self-Control</button>
                         </div>
                     </div>
 
                     <div class="metric-block task-block">
                         <div class="metric-title">Tasks Completed</div>
                         <div class="btn-group">
-                            <button class="btn-opt ${data.tc === 'all' ? 'selected-good' : ''}" onclick="setMetric('${name}', 'tc', 'all')">All Tasks</button>
-                            <button class="btn-opt ${data.tc === 'some' ? 'selected-mid' : ''}" onclick="setMetric('${name}', 'tc', 'some')">Some Tasks</button>
-                            <button class="btn-opt ${data.tc === 'none' ? 'selected-low' : ''}" onclick="setMetric('${name}', 'tc', 'none')">No Tasks</button>
+                            <button class="btn-opt ${displayTC === 'all' ? 'selected-good' : ''}" onclick="event.stopPropagation(); setMetric('${name}', 'tc', 'all')">All Tasks</button>
+                            <button class="btn-opt ${displayTC === 'some' ? 'selected-mid' : ''}" onclick="event.stopPropagation(); setMetric('${name}', 'tc', 'some')">Some Tasks</button>
+                            <button class="btn-opt ${displayTC === 'none' ? 'selected-low' : ''}" onclick="event.stopPropagation(); setMetric('${name}', 'tc', 'none')">No Tasks</button>
                         </div>
                     </div>
 
                     <div class="card-actions">
-                        <button class="btn-action reflect-btn" onclick="openReflectionForm('${name}')">📝 Reflect</button>
-                        <button class="btn-action" onclick="toggleAbsent('${name}', 'block')">Abs Blk</button>
-                        <button class="btn-action" onclick="toggleAbsent('${name}', 'day')">Abs Day</button>
+                        <button class="btn-action reflect-btn" onclick="event.stopPropagation(); openReflectionForm('${name}')">📝 Reflect</button>
+                        <button class="btn-action" onclick="event.stopPropagation(); toggleAbsent('${name}', 'block')">Abs Blk</button>
+                        <button class="btn-action" onclick="event.stopPropagation(); toggleAbsent('${name}', 'day')">Abs Day</button>
                     </div>
                 `;
             }
@@ -571,8 +682,7 @@
                 const d = db.reflections[key]?.[n] || {};
                 const scCounts = getSelfControlCountsForDay(n, day);
 
-                let rowClass = 'row-mid';
-                if (scCounts.high >= 2) rowClass = 'row-good';
+                let rowClass = 'row-good';
                 if (scCounts.low >= 2) rowClass = 'row-bad';
 
                 if (isAbsentDay) {
@@ -580,9 +690,19 @@
                 } else if (d.absent) {
                     html += `<tr class="row-absent"><td><b>${n}</b></td><td colspan="3">Absent Block</td></tr>`;
                 } else {
-                    let smileys = d.sc === 'high' ? 1 : 0;
-                    let scText = d.sc === 'high' ? 'High' : (d.sc === 'reminders' ? 'Reminders' : (d.sc === 'low' ? 'Low' : '-'));
-                    let tcText = d.tc === 'all' ? 'All' : (d.tc === 'some' ? 'Some' : (d.tc === 'none' ? 'None' : '-'));
+                    const effSC = getEffectiveSC(key, n, day);
+                    const effTC = getEffectiveTC(key, n, day);
+                    let smileys = effSC === 'high' ? 1 : 0;
+                    
+                    let scText = 'Pending';
+                    if (effSC === 'high') scText = 'High';
+                    else if (effSC === 'reminders') scText = 'Reminders';
+                    else if (effSC === 'low') scText = 'Low';
+
+                    let tcText = 'Pending';
+                    if (effTC === 'all') tcText = 'All';
+                    else if (effTC === 'some') tcText = 'Some';
+                    else if (effTC === 'none') tcText = 'None';
 
                     html += `<tr class="${rowClass}">
                         <td><b>${n}</b></td>
@@ -596,26 +716,36 @@
         } else {
             html = `<table><tr><th>Student</th><th>Total Smileys Earned</th><th>Weekly Reflections Completed</th></tr>`;
             const allStudents = Array.from(new Set([...(db.regularNames || []), ...(db.mathsNames || [])])).sort();
-            
+            const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+            const blocks = ['Block 1', 'Block 2', 'Block 3', 'Maths'];
+
             allStudents.forEach(n => {
                 let totalSmileys = 0;
                 let studentWeeklyReflections = [];
 
-                Object.keys(db.reflections || {}).forEach(refKey => {
-                    const d = db.reflections[refKey]?.[n];
-                    if (d && !d.absent && d.sc === 'high') totalSmileys++;
+                days.forEach(d => {
+                    blocks.forEach(b => {
+                        const refKey = `${d}-${b}`;
+                        const isMathsBlock = b === 'Maths';
+                        const inRoster = isMathsBlock ? (db.mathsNames || []).includes(n) : (db.regularNames || []).includes(n);
 
-                    if (d && d.reflectionAnswers) {
-                        studentWeeklyReflections.push({
-                            blockKey: refKey,
-                            answers: d.reflectionAnswers
-                        });
-                    }
+                        if (inRoster) {
+                            const effSC = getEffectiveSC(refKey, n, d);
+                            if (effSC === 'high') totalSmileys++;
+
+                            const refData = db.reflections[refKey]?.[n];
+                            if (refData && refData.reflectionAnswers) {
+                                studentWeeklyReflections.push({
+                                    blockKey: refKey,
+                                    answers: refData.reflectionAnswers
+                                });
+                            }
+                        }
+                    });
                 });
 
                 const scCounts = getSelfControlCountsForDay(n, day);
-                let rowClass = 'row-mid';
-                if (scCounts.high >= 2) rowClass = 'row-good';
+                let rowClass = 'row-good';
                 if (scCounts.low >= 2) rowClass = 'row-bad';
 
                 const sheetComplete = totalSmileys >= 15;
@@ -667,8 +797,8 @@
         const payload = roster.map(name => ({
             name: name, 
             block: key,
-            selfControl: db.reflections[key]?.[name]?.sc || null,
-            taskCompletion: db.reflections[key]?.[name]?.tc || null,
+            selfControl: getEffectiveSC(key, name, day) || 'Pending',
+            taskCompletion: getEffectiveTC(key, name, day) || 'Pending',
             absent: !!(db.absentDay[day]?.[name] || db.reflections[key]?.[name]?.absent)
         }));
 
