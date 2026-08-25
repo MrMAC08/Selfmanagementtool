@@ -8,6 +8,7 @@
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
 
     <style>
         :root { 
@@ -57,7 +58,6 @@
             font-weight: 600; cursor: pointer; background: var(--panel); color: var(--text); font-size: 0.8rem; 
         }
         .btn-primary { background: var(--primary); color: white; border: none; }
-        .btn-success { background: var(--success); color: white; border: none; }
         .btn-submit-block { background: #0284c7; color: white; border: none; font-weight: 800; font-size: 0.85rem; padding: 5px 12px; }
 
         .block-status-bar {
@@ -99,21 +99,10 @@
         }
         .student-card.absent-card { opacity: 0.45; background: var(--absent); color: white; }
 
-        .student-card.manual-highlight {
-            border: 3px solid #dc2626 !important;
-            box-shadow: 0 0 12px rgba(220, 38, 38, 0.7) !important;
-            background: rgba(220, 38, 38, 0.05) !important;
-        }
-
-        .student-card.auto-flagged {
-            border: 3px solid #ef4444 !important;
-            box-shadow: 0 0 10px rgba(239, 68, 68, 0.7) !important;
-            animation: pulse-border 1.5s infinite alternate;
-        }
-
-        @keyframes pulse-border {
-            0% { box-shadow: 0 0 4px rgba(239, 68, 68, 0.4); }
-            100% { box-shadow: 0 0 12px rgba(239, 68, 68, 0.9); }
+        /* Highlight state when Limited is selected */
+        .student-card.limited-highlight {
+            border: 2px solid var(--warning) !important;
+            background: rgba(245, 158, 11, 0.06) !important;
         }
 
         .card-header { 
@@ -122,21 +111,37 @@
         }
         .student-name { 
             font-weight: 800; font-size: 0.82rem; white-space: nowrap; 
-            overflow: hidden; text-overflow: ellipsis; max-width: 70px; color: var(--text);
+            overflow: hidden; text-overflow: ellipsis; max-width: 60px; color: var(--text);
         }
-        .status-badge { font-size: 0.6rem; font-weight: bold; background: var(--success); color: white; padding: 1px 3px; border-radius: 4px; }
         .default-badge { font-size: 0.6rem; font-weight: bold; background: #0284c7; color: white; padding: 1px 3px; border-radius: 4px; }
-        .flag-badge { font-size: 0.6rem; font-weight: bold; background: var(--danger); color: white; padding: 1px 3px; border-radius: 4px; cursor: pointer; }
+        .flag-badge { font-size: 0.55rem; font-weight: bold; background: var(--danger); color: white; padding: 1px 3px; border-radius: 4px; }
+        .probation-badge { font-size: 0.55rem; font-weight: bold; background: var(--danger); color: white; padding: 1px 3px; border-radius: 4px; }
+        .form-needed-badge { font-size: 0.58rem; font-weight: bold; background: #ea580c; color: white; padding: 1px 4px; border-radius: 4px; cursor: pointer; }
         .response-badge { font-size: 0.6rem; font-weight: bold; background: #8b5cf6; color: white; padding: 1px 3px; border-radius: 4px; cursor: pointer; }
+
+        .timer-banner {
+            background: #fee2e2; border: 1px solid #fca5a5; color: #991b1b;
+            font-size: 0.65rem; font-weight: bold; text-align: center;
+            padding: 4px 2px; border-radius: 4px; margin-top: 2px; display: flex;
+            flex-direction: column; gap: 2px; align-items: center;
+        }
+        .timer-clock { font-size: 0.85rem; font-weight: 900; letter-spacing: 0.5px; color: #dc2626; }
+        body.dark-mode .timer-banner { background: #451a03; color: #fbbf24; border-color: #78350f; }
+        body.dark-mode .timer-clock { color: #fde047; }
+
+        .break-banner {
+            background: #dc2626; color: white; border: 1px solid #b91c1c;
+            font-size: 0.62rem; font-weight: 900; text-align: center;
+            padding: 5px 2px; border-radius: 4px; margin-top: 2px;
+            box-shadow: 0 2px 4px rgba(220, 38, 38, 0.4);
+            letter-spacing: 0.2px;
+        }
 
         .metric-block {
             background: var(--row-bg-1);
             padding: 3px;
             border-radius: 5px;
             border: 1px solid rgba(0,0,0,0.05);
-        }
-        .metric-block.task-block {
-            background: var(--row-bg-2);
         }
 
         .metric-title { 
@@ -147,8 +152,8 @@
         .btn-group { display: flex; flex-direction: column; gap: 2px; width: 100%; }
 
         .btn-opt {
-            width: 100%; padding: 4px 2px; border-radius: 4px; border: 1px solid var(--border);
-            background: var(--panel); color: var(--text); font-size: 0.65rem; font-weight: 700;
+            width: 100%; padding: 5px 2px; border-radius: 4px; border: 1px solid var(--border);
+            background: var(--panel); color: var(--text); font-size: 0.68rem; font-weight: 700;
             cursor: pointer; text-align: center; line-height: 1.1; white-space: nowrap; 
             overflow: hidden; text-overflow: ellipsis;
             box-shadow: 0 1px 2px rgba(0,0,0,0.03);
@@ -167,21 +172,17 @@
         .btn-action.reflect-btn:hover { background: #ea580c; color: white; }
 
         .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; display: none; justify-content: center; align-items: center; padding: 15px; }
-        .modal-card { background: var(--panel); width: 100%; max-width: 550px; padding: 18px; border-radius: 12px; border: 1px solid var(--border); max-height: 85vh; overflow-y: auto; }
+        .modal-card { background: var(--panel); width: 100%; max-width: 600px; padding: 18px; border-radius: 12px; border: 1px solid var(--border); max-height: 85vh; overflow-y: auto; }
         .tab-btn { padding: 6px 12px; font-size: 0.75rem; border-radius: 6px 6px 0 0; border: 1px solid var(--border); background: var(--bg); cursor: pointer; }
         .tab-btn.active { background: var(--panel); font-weight: bold; border-bottom: none; }
         
-        table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 8px; margin-bottom: 16px; }
         th, td { border: 1px solid var(--border); padding: 6px; text-align: center; font-size: 0.75rem; }
 
         .row-good { background-color: rgba(34, 197, 94, 0.18) !important; color: #14532d; font-weight: 600; }
         .row-mid { background-color: rgba(245, 158, 11, 0.18) !important; color: #78350f; font-weight: 600; }
         .row-bad { background-color: rgba(239, 68, 68, 0.18) !important; color: #7f1d1d; font-weight: 600; }
         .row-absent { background-color: rgba(100, 116, 139, 0.15) !important; color: var(--absent); }
-
-        body.dark-mode .row-good { background-color: rgba(34, 197, 94, 0.25) !important; color: #86efac; }
-        body.dark-mode .row-mid { background-color: rgba(245, 158, 11, 0.25) !important; color: #fde047; }
-        body.dark-mode .row-bad { background-color: rgba(239, 68, 68, 0.25) !important; color: #fca5a5; }
 
         .reflection-field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; text-align: left; }
         .reflection-field label { font-size: 0.8rem; font-weight: 700; color: var(--text); }
@@ -190,18 +191,6 @@
             background: var(--panel); color: var(--text);
         }
         .reflection-field textarea { resize: vertical; height: 65px; }
-
-        .weekly-reflection-box {
-            background: rgba(255, 255, 255, 0.6);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 6px;
-            margin-top: 4px;
-            font-size: 0.7rem;
-            text-align: left;
-        }
-        body.dark-mode .weekly-reflection-box { background: rgba(0, 0, 0, 0.3); }
-        .weekly-reflection-box summary { cursor: pointer; font-weight: bold; color: #8b5cf6; }
     </style>
 </head>
 <body>
@@ -217,7 +206,6 @@
         <button onclick="submitCurrentBlock()" id="submitBlockBtn" class="btn-submit-block">✅ Submit & Complete Block</button>
         <button onclick="clearCurrentBlockData()" style="background:#78716c; color:white; border:none;">🗑️ Clear Block</button>
         <button onclick="showSummary('block')" class="btn-primary">📊 Summary</button>
-        <button id="exportBtn" onclick="exportToGoogleSheets()" class="btn-success">🚀 Export</button>
     </div>
 </div>
 
@@ -233,7 +221,7 @@
 <!-- Student Reflection Form Modal -->
 <div id="reflectionModal" class="modal">
     <div class="modal-card">
-        <h2 style="margin-top:0; color:var(--primary); text-align:center; font-size:1.2rem;">💭 Whakaute Reflection Form</h2>
+        <h2 style="margin-top:0; color:var(--primary); text-align:center; font-size:1.2rem;">💭 Whakaute Private Practice Reflection</h2>
         <p id="reflectionStudentHeader" style="font-size:0.9rem; text-align:center; font-weight:bold; margin-top:-5px; color:var(--text);"></p>
 
         <div class="reflection-field">
@@ -248,7 +236,7 @@
         </div>
 
         <div class="reflection-field">
-            <label>2. Which class value will you focus on for the rest of the block?</label>
+            <label>2. Which class value will you focus on next time?</label>
             <select id="refQ2">
                 <option value="Whakaute (Respect)">Whakaute (Respect)</option>
                 <option value="Manaakitanga (Kindness)">Manaakitanga (Kindness)</option>
@@ -258,8 +246,8 @@
         </div>
 
         <div class="reflection-field">
-            <label>3. What is one concrete action you will take right now?</label>
-            <textarea id="refQ3" placeholder="e.g. Move to a quiet seat, put away distractions, raise my hand..."></textarea>
+            <label>3. What concrete step will you take during class to stay on task?</label>
+            <textarea id="refQ3" placeholder="e.g. Move to a quiet desk, raise my hand before speaking, stay focused on my work..."></textarea>
         </div>
 
         <div style="display:flex; gap:6px; margin-top:8px;">
@@ -307,23 +295,31 @@
 </div>
 
 <script>
-    // ⚠️ REPLACE THIS BLOCK WITH YOUR FIREBASE CONFIG
     const firebaseConfig = {
-        apiKey: "YOUR_API_KEY",
-        authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-        databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
-        projectId: "YOUR_PROJECT_ID",
-        storageBucket: "YOUR_PROJECT_ID.appspot.com",
-        messagingSenderId: "YOUR_SENDER_ID",
-        appId: "YOUR_APP_ID"
+        apiKey: "AIzaSyBq6S0TDqWgCsvwVePK6ahoVx0RQ8SZkSo",
+        authDomain: "self-control-tracker-907f6.firebaseapp.com",
+        projectId: "self-control-tracker-907f6",
+        storageBucket: "self-control-tracker-907f6.firebasestorage.app",
+        messagingSenderId: "620247746",
+        appId: "1:620247746:web:ceef922ade61b38b5e195b"
     };
 
     firebase.initializeApp(firebaseConfig);
+    firebase.auth().signInAnonymously();
     const dbRef = firebase.database().ref('whakaute_data');
 
     let db = {
-        regularNames: ["Alex", "Ben", "Charlie", "Daniel", "Emma", "Hana", "Jacob", "Liam", "Mia", "Noah", "Sophia", "Oliver", "Ava"],
-        mathsNames: ["Alex", "Charlie", "Ethan", "Harper", "Isabella", "Lucas", "Mason", "Noah", "Oliver", "Sophia"],
+        regularNames: [
+            "Aiden", "Aleigha", "Ameila", "Arlo", "Ava", "Coby", "Ella", "Eris", 
+            "Freya", "Griffin", "Harley", "Henry", "Jake", "Jakey", "Kohen", 
+            "Levi", "Lex", "Leyton", "Reggie", "Ryder", "Sara-Lee", "Scarlett", "Skyla"
+        ],
+        mathsNames: [
+            "Aiden", "Amelia", "Annabelle", "Ava", "Blake", "Brody", "Coby", "Eris", 
+            "Freya", "Harley", "Harper", "Hendrix", "Henry", "Indie G", "Indie M", 
+            "Jakey", "Lex", "Marlo", "Natalija", "Reggie", "Ruby", "Ryder", 
+            "Siena", "Skyla", "Tayla", "Zac"
+        ],
         reflections: {}, 
         absentDay: {},
         blockSubmitted: {},
@@ -331,6 +327,35 @@
     };
 
     let activeStudentForReflection = null;
+    let timerInterval = null;
+    let soundedTimers = {};
+
+    function playTimerBeep() {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const now = ctx.currentTime;
+
+            const osc1 = ctx.createOscillator();
+            const gain1 = ctx.createGain();
+            osc1.type = 'sine';
+            osc1.frequency.setValueAtTime(587.33, now);
+            osc1.connect(gain1);
+            gain1.connect(ctx.destination);
+            osc1.start(now);
+            osc1.stop(now + 0.15);
+
+            const osc2 = ctx.createOscillator();
+            const gain2 = ctx.createGain();
+            osc2.type = 'sine';
+            osc2.frequency.setValueAtTime(880, now + 0.18);
+            osc2.connect(gain2);
+            gain2.connect(ctx.destination);
+            osc2.start(now + 0.18);
+            osc2.stop(now + 0.4);
+        } catch(e) {
+            console.log("Audio play blocked", e);
+        }
+    }
 
     dbRef.on('value', (snapshot) => {
         const val = snapshot.val();
@@ -342,6 +367,10 @@
             loadView();
         }
     });
+
+    if (!timerInterval) {
+        timerInterval = setInterval(() => { loadView(); }, 1000);
+    }
 
     function save() { dbRef.set(db); }
     function toggleTheme() { db.darkMode = !db.darkMode; document.body.classList.toggle('dark-mode', db.darkMode); save(); }
@@ -356,37 +385,116 @@
         return !!db.blockSubmitted?.[refKey];
     }
 
-    // SC evaluates to 'high' default ONLY IF block is submitted
     function getEffectiveSC(refKey, name, day) {
         if (db.absentDay[day]?.[name]) return 'absent';
         const d = db.reflections[refKey]?.[name];
         if (d?.absent) return 'absent';
         if (d?.sc) return d.sc;
-        
         return isBlockSubmitted(refKey) ? 'high' : null;
     }
 
-    // TC evaluates to 'all' default ONLY IF block is submitted
-    function getEffectiveTC(refKey, name, day) {
-        if (db.absentDay[day]?.[name]) return 'absent';
-        const d = db.reflections[refKey]?.[name];
-        if (d?.absent) return 'absent';
-        if (d?.tc) return d.tc;
+    function getSelfControlCountsForDay(name, day, classType = 'regular') {
+        let counts = { high: 0, limited: 0, low: 0, total: 0 };
+        const blocks = classType === 'maths' ? ['Maths'] : ['Block 1', 'Block 2', 'Block 3'];
         
-        return isBlockSubmitted(refKey) ? 'all' : null;
-    }
-
-    function getSelfControlCountsForDay(name, day) {
-        let counts = { high: 0, low: 0, total: 0 };
-        const blocks = ['Block 1', 'Block 2', 'Block 3', 'Maths'];
         blocks.forEach(blk => {
             const refKey = `${day}-${blk}`;
             const sc = getEffectiveSC(refKey, name, day);
             if (sc === 'high') counts.high++;
+            if (sc === 'limited') counts.limited++;
             if (sc === 'low') counts.low++;
             if (sc && sc !== 'absent') counts.total++;
         });
         return counts;
+    }
+
+    function setLimited(name) {
+        const key = getKey();
+        if (!db.reflections[key]) db.reflections[key] = {};
+        if (!db.reflections[key][name]) db.reflections[key][name] = {};
+
+        const data = db.reflections[key][name];
+        
+        if (data.sc === 'limited') {
+            data.sc = null;
+        } else {
+            data.sc = 'limited';
+        }
+        
+        delete data.lowTimerStart;
+        delete data.returningAtBreak;
+        delete data.lowStage;
+        save();
+    }
+
+    function handleLowClick(name) {
+        const key = getKey();
+        if (!db.reflections[key]) db.reflections[key] = {};
+        if (!db.reflections[key][name]) db.reflections[key][name] = {};
+
+        const data = db.reflections[key][name];
+        let currentLowStage = data.lowStage || 0;
+        
+        if (data.sc !== 'low') {
+            currentLowStage = 0;
+        }
+
+        currentLowStage = (currentLowStage + 1) % 3;
+        data.lowStage = currentLowStage;
+
+        if (currentLowStage === 1) {
+            data.sc = 'low';
+            data.lowTimerStart = Date.now();
+            delete data.returningAtBreak;
+        } else if (currentLowStage === 2) {
+            data.sc = 'low';
+            data.returningAtBreak = true;
+            delete data.lowTimerStart;
+        } else {
+            data.sc = null;
+            data.lowStage = 0;
+            delete data.lowTimerStart;
+            delete data.returningAtBreak;
+        }
+
+        save();
+    }
+
+    function setSC(name, val) {
+        if (val === 'limited') {
+            setLimited(name);
+            return;
+        }
+        if (val === 'low') {
+            handleLowClick(name);
+            return;
+        }
+
+        const key = getKey();
+        if (!db.reflections[key]) db.reflections[key] = {};
+        if (!db.reflections[key][name]) db.reflections[key][name] = {};
+
+        db.reflections[key][name].sc = val;
+        db.reflections[key][name].lowStage = 0;
+        delete db.reflections[key][name].lowTimerStart;
+        delete db.reflections[key][name].returningAtBreak;
+        save();
+    }
+
+    function toggleAbsentBlock(name) {
+        const key = getKey();
+        if (!db.reflections[key]) db.reflections[key] = {};
+        if (!db.reflections[key][name]) db.reflections[key][name] = {};
+
+        db.reflections[key][name].absent = !db.reflections[key][name].absent;
+        save();
+    }
+
+    function toggleAbsentDay(name) {
+        const day = document.getElementById('daySelect').value;
+        if (!db.absentDay[day]) db.absentDay[day] = {};
+        db.absentDay[day][name] = !db.absentDay[day][name];
+        save();
     }
 
     function submitCurrentBlock() {
@@ -398,21 +506,12 @@
                 save();
             }
         } else {
-            if (confirm(`Submit and complete ${key}?\n\nAll unclicked cards will automatically default to High Self-Control and All Tasks, awarding their smileys.`)) {
+            if (confirm(`Submit and complete ${key}?\n\nAll unclicked cards will automatically default to High Self-Control 😊.`)) {
                 if (!db.blockSubmitted) db.blockSubmitted = {};
                 db.blockSubmitted[key] = true;
                 save();
             }
         }
-    }
-
-    function toggleManualHighlight(name) {
-        const key = getKey();
-        if (!db.reflections[key]) db.reflections[key] = {};
-        if (!db.reflections[key][name]) db.reflections[key][name] = {};
-
-        db.reflections[key][name].manualHighlight = !db.reflections[key][name].manualHighlight;
-        save();
     }
 
     function openReflectionForm(name) {
@@ -444,9 +543,7 @@
 
         db.reflections[key][activeStudentForReflection].reflectionSubmitted = true;
         db.reflections[key][activeStudentForReflection].reflectionAnswers = {
-            q1: q1,
-            q2: q2,
-            q3: q3,
+            q1: q1, q2: q2, q3: q3,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
 
@@ -491,7 +588,7 @@
     }
 
     function resetAllDataForNewWeek() {
-        if (confirm("⚠️ WARNING: This will delete ALL weekly smiley data, ratings, block completions, and student reflections for EVERY day. Are you sure?")) {
+        if (confirm("⚠️ WARNING: This will delete ALL weekly data, ratings, block completions, and student reflections for EVERY day. Are you sure?")) {
             db.reflections = {};
             db.absentDay = {};
             db.blockSubmitted = {};
@@ -505,20 +602,21 @@
         if (db.darkMode) document.body.classList.add('dark-mode');
         const key = getKey();
         const day = document.getElementById('daySelect').value;
+        const currentBlockVal = document.getElementById('blockSelect').value;
+        const isMathsBlock = currentBlockVal === 'Maths';
         const roster = getCurrentRoster();
         const submitted = isBlockSubmitted(key);
 
         if (!db.reflections[key]) db.reflections[key] = {};
         if (!db.absentDay[day]) db.absentDay[day] = {};
 
-        // Update Block Status Bar & Button
         const statusText = document.getElementById('blockStatusText');
         const statusTag = document.getElementById('blockStatusTag');
         const submitBtn = document.getElementById('submitBlockBtn');
 
         if (submitted) {
             statusText.innerText = `Status: Submitted & Completed (${key})`;
-            statusTag.innerText = "LOCKED IN / SMILEYS CREDITED";
+            statusTag.innerText = "LOCKED IN";
             statusTag.className = "status-tag-submitted";
             submitBtn.innerText = "🔓 Re-open Block";
             submitBtn.style.background = "#475569";
@@ -539,117 +637,103 @@
             const isAbsentBlock = data.absent;
             
             const effSC = getEffectiveSC(key, name, day);
-            const effTC = getEffectiveTC(key, name, day);
-            
-            const hasManualSelection = !!(data.sc || data.tc);
-            const isDone = (hasManualSelection || submitted) && !isAbsentBlock && !isAbsentDay;
-            const isHighlighted = !!data.manualHighlight;
+            const isDone = (effSC || submitted) && !isAbsentBlock && !isAbsentDay;
 
-            const scCounts = getSelfControlCountsForDay(name, day);
-            const isAutoFlagged = scCounts.low >= 3;
-            const hasSubmittedResponse = !!data.reflectionSubmitted;
+            const scCounts = getSelfControlCountsForDay(name, day, isMathsBlock ? 'maths' : 'regular');
+            const is3LowAutoFlagged = scCounts.low >= 3;
+
+            let isTimerRunning = false;
+            let formattedTime = "15:00";
+
+            if (data.lowTimerStart) {
+                const elapsedMs = Date.now() - data.lowTimerStart;
+                const total15MinMs = 15 * 60 * 1000;
+                
+                if (elapsedMs < total15MinMs) {
+                    isTimerRunning = true;
+                    const remainingSecsTotal = Math.ceil((total15MinMs - elapsedMs) / 1000);
+                    const mins = Math.floor(remainingSecsTotal / 60);
+                    const secs = remainingSecsTotal % 60;
+                    formattedTime = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+                } else {
+                    data.returningAtBreak = true;
+                    delete data.lowTimerStart;
+                    const timerKey = `${key}-${name}`;
+                    if (!soundedTimers[timerKey]) {
+                        playTimerBeep();
+                        soundedTimers[timerKey] = true;
+                    }
+                    save();
+                }
+            }
 
             const card = document.createElement('div');
-            
             let cardClasses = ['student-card'];
             if (isDone) cardClasses.push('completed');
             if (isAbsentBlock || isAbsentDay) cardClasses.push('absent-card');
-            if (isAutoFlagged) cardClasses.push('auto-flagged');
-            if (isHighlighted) cardClasses.push('manual-highlight');
+            
+            if (effSC === 'limited') cardClasses.push('limited-highlight');
 
             card.className = cardClasses.join(' ');
-            card.ondblclick = () => toggleManualHighlight(name);
 
-            let headerBadges = '';
-            if (hasSubmittedResponse) {
-                headerBadges = `<span class="response-badge" onclick="event.stopPropagation(); openResponseViewer('${name}')">📩 View</span>`;
-            } else if (isAutoFlagged) {
-                headerBadges = `<span class="flag-badge" onclick="event.stopPropagation(); openReflectionForm('${name}')" title="Click to fill out reflection">⚠️ 3 LOW</span>`;
-            } else if (hasManualSelection) {
-                headerBadges = `<span class="status-badge">DONE</span>`;
-            } else if (submitted && !isAbsentDay && !isAbsentBlock) {
-                headerBadges = `<span class="default-badge">DEFAULT</span>`;
-            }
+            let cardContent = `
+                <div class="card-header">
+                    <span class="student-name" title="${name}">${name}</span>
+                    <div style="display:flex; gap:2px; align-items:center;">
+                        ${data.reflectionSubmitted 
+                            ? `<span class="response-badge" onclick="openResponseViewer('${name}')">💬 View</span>` 
+                            : (effSC === 'low' ? `<span class="form-needed-badge" onclick="openReflectionForm('${name}')">📝 Form</span>` : '')
+                        }
+                        ${is3LowAutoFlagged ? `<span class="flag-badge" title="3 Lows Today!">🚩 3x</span>` : ''}
+                        ${isTimerRunning ? `<span class="probation-badge">⏳ 15m</span>` : ''}
+                        ${!data.sc && submitted && !isAbsentBlock && !isAbsentDay ? `<span class="default-badge">Auto</span>` : ''}
+                    </div>
+                </div>
+            `;
 
-            if (isAbsentDay || isAbsentBlock) {
-                card.innerHTML = `
-                    <div class="card-header">
-                        <span class="student-name" title="${name}">${name}</span>
-                        <span style="font-size:0.65rem; font-weight:bold;">${isAbsentDay ? 'Abs Day' : 'Abs Blk'}</span>
-                    </div>
-                    <div style="padding:15px 0; text-align:center; font-size:0.75rem; font-style:italic;">
-                        ${isAbsentDay ? 'Absent All Day' : 'Absent This Block'}
-                    </div>
-                    <div class="card-actions">
-                        <button class="btn-action" onclick="event.stopPropagation(); toggleAbsent('${name}', 'block')">Un-Blk</button>
-                        <button class="btn-action" onclick="event.stopPropagation(); toggleAbsent('${name}', 'day')">Un-Day</button>
-                    </div>
-                `;
+            if (isAbsentDay) {
+                cardContent += `<div style="font-size:0.7rem; font-weight:bold; text-align:center; padding:10px 0; color:#cbd5e1;">ABSENT ALL DAY</div>`;
+            } else if (isAbsentBlock) {
+                cardContent += `<div style="font-size:0.7rem; font-weight:bold; text-align:center; padding:10px 0; color:#cbd5e1;">ABSENT THIS BLOCK</div>`;
             } else {
-                const displaySC = effSC;
-                const displayTC = effTC;
-
-                card.innerHTML = `
-                    <div class="card-header">
-                        <span class="student-name" title="${name}">${name}</span>
-                        ${headerBadges}
-                    </div>
-
+                cardContent += `
                     <div class="metric-block">
                         <div class="metric-title">Self-Control</div>
                         <div class="btn-group">
-                            <button class="btn-opt ${displaySC === 'high' ? 'selected-good' : ''}" onclick="event.stopPropagation(); setMetric('${name}', 'sc', 'high')">High Self-Control</button>
-                            <button class="btn-opt ${displaySC === 'reminders' ? 'selected-mid' : ''}" onclick="event.stopPropagation(); setMetric('${name}', 'sc', 'reminders')">Needed Reminders</button>
-                            <button class="btn-opt ${displaySC === 'low' ? 'selected-low' : ''}" onclick="event.stopPropagation(); setMetric('${name}', 'sc', 'low')">Low Self-Control</button>
+                            <button class="btn-opt ${effSC === 'high' ? 'selected-good' : ''}" onclick="setSC('${name}', 'high')">High 😊</button>
+                            <button class="btn-opt ${effSC === 'limited' ? 'selected-mid' : ''}" onclick="setSC('${name}', 'limited')">Limited</button>
+                            <button class="btn-opt ${effSC === 'low' ? 'selected-low' : ''}" onclick="setSC('${name}', 'low')">Low</button>
                         </div>
-                    </div>
-
-                    <div class="metric-block task-block">
-                        <div class="metric-title">Tasks Completed</div>
-                        <div class="btn-group">
-                            <button class="btn-opt ${displayTC === 'all' ? 'selected-good' : ''}" onclick="event.stopPropagation(); setMetric('${name}', 'tc', 'all')">All Tasks</button>
-                            <button class="btn-opt ${displayTC === 'some' ? 'selected-mid' : ''}" onclick="event.stopPropagation(); setMetric('${name}', 'tc', 'some')">Some Tasks</button>
-                            <button class="btn-opt ${displayTC === 'none' ? 'selected-low' : ''}" onclick="event.stopPropagation(); setMetric('${name}', 'tc', 'none')">No Tasks</button>
-                        </div>
-                    </div>
-
-                    <div class="card-actions">
-                        <button class="btn-action reflect-btn" onclick="event.stopPropagation(); openReflectionForm('${name}')">📝 Reflect</button>
-                        <button class="btn-action" onclick="event.stopPropagation(); toggleAbsent('${name}', 'block')">Abs Blk</button>
-                        <button class="btn-action" onclick="event.stopPropagation(); toggleAbsent('${name}', 'day')">Abs Day</button>
                     </div>
                 `;
+
+                if (isTimerRunning) {
+                    cardContent += `
+                        <div class="timer-banner">
+                            <span>MUST WORK QUIETLY</span>
+                            <span class="timer-clock">${formattedTime}</span>
+                        </div>
+                    `;
+                } else if (data.returningAtBreak) {
+                    cardContent += `
+                        <div class="break-banner">
+                            🚨 PRIVATE PRACTICE AT BREAK
+                        </div>
+                    `;
+                }
             }
+
+            cardContent += `
+                <div class="card-actions">
+                    <button class="btn-action" onclick="toggleAbsentBlock('${name}')">${isAbsentBlock ? 'Unabsent' : 'Abs Block'}</button>
+                    <button class="btn-action" onclick="toggleAbsentDay('${name}')">${isAbsentDay ? 'Unabsent Day' : 'Abs Day'}</button>
+                    ${effSC === 'low' ? `<button class="btn-action reflect-btn" onclick="openReflectionForm('${name}')">Form</button>` : ''}
+                </div>
+            `;
+
+            card.innerHTML = cardContent;
             grid.appendChild(card);
         });
-    }
-
-    function setMetric(name, metric, val) {
-        const key = getKey();
-        if (!db.reflections[key]) db.reflections[key] = {};
-        if (!db.reflections[key][name]) db.reflections[key][name] = {};
-        
-        if (db.reflections[key][name][metric] === val) {
-            db.reflections[key][name][metric] = null;
-        } else {
-            db.reflections[key][name][metric] = val;
-        }
-        save();
-    }
-
-    function toggleAbsent(name, type) {
-        const day = document.getElementById('daySelect').value;
-        const key = getKey();
-
-        if (type === 'day') {
-            if (!db.absentDay[day]) db.absentDay[day] = {};
-            db.absentDay[day][name] = !db.absentDay[day][name];
-        } else {
-            if (!db.reflections[key]) db.reflections[key] = {};
-            if (!db.reflections[key][name]) db.reflections[key][name] = {};
-            db.reflections[key][name].absent = !db.reflections[key][name].absent;
-        }
-        save();
     }
 
     function openSetup() {
@@ -659,160 +743,60 @@
     }
 
     function saveSettings() {
-        db.regularNames = document.getElementById('regularInput').value.split(',').map(n => n.trim()).filter(n => n !== "").sort();
-        db.mathsNames = document.getElementById('mathsInput').value.split(',').map(n => n.trim()).filter(n => n !== "").sort();
-        save(); 
-        document.getElementById('setupModal').style.display = 'none'; 
+        const reg = document.getElementById('regularInput').value.split(',').map(s => s.trim()).filter(Boolean);
+        const mat = document.getElementById('mathsInput').value.split(',').map(s => s.trim()).filter(Boolean);
+        db.regularNames = reg;
+        db.mathsNames = mat;
+        save();
+        document.getElementById('setupModal').style.display = 'none';
     }
 
-    function showSummary(mode) {
-        document.getElementById('tabBlock').classList.toggle('active', mode === 'block');
-        document.getElementById('tabWeekly').classList.toggle('active', mode === 'weekly');
-        
+    function showSummary(tab) {
         const key = getKey();
         const day = document.getElementById('daySelect').value;
+        const currentBlockVal = document.getElementById('blockSelect').value;
+        const isMaths = currentBlockVal === 'Maths';
         const roster = getCurrentRoster();
+        const container = document.getElementById('summaryContent');
 
-        let html = '';
+        document.getElementById('tabBlock').classList.toggle('active', tab === 'block');
+        document.getElementById('tabWeekly').classList.toggle('active', tab === 'weekly');
 
-        if (mode === 'block') {
-            html = `<table><tr><th>Student</th><th>Self-Control</th><th>Tasks Completed</th><th>Block Smiley</th></tr>`;
-            roster.forEach(n => {
-                const isAbsentDay = db.absentDay[day]?.[n];
-                const d = db.reflections[key]?.[n] || {};
-                const scCounts = getSelfControlCountsForDay(n, day);
+        if (tab === 'block') {
+            let html = `<h4>Block Summary: ${key}</h4><table><tr><th>Student</th><th>Self Control</th></tr>`;
+            roster.forEach(name => {
+                const sc = getEffectiveSC(key, name, day);
+                let rowClass = '';
+                if (sc === 'high') rowClass = 'row-good';
+                else if (sc === 'limited') rowClass = 'row-mid';
+                else if (sc === 'low') rowClass = 'row-bad';
+                else if (sc === 'absent') rowClass = 'row-absent';
 
-                let rowClass = 'row-good';
-                if (scCounts.low >= 2) rowClass = 'row-bad';
-
-                if (isAbsentDay) {
-                    html += `<tr class="row-absent"><td><b>${n}</b></td><td colspan="3">Absent Whole Day</td></tr>`;
-                } else if (d.absent) {
-                    html += `<tr class="row-absent"><td><b>${n}</b></td><td colspan="3">Absent Block</td></tr>`;
-                } else {
-                    const effSC = getEffectiveSC(key, n, day);
-                    const effTC = getEffectiveTC(key, n, day);
-                    let smileys = effSC === 'high' ? 1 : 0;
-                    
-                    let scText = 'Pending';
-                    if (effSC === 'high') scText = 'High';
-                    else if (effSC === 'reminders') scText = 'Reminders';
-                    else if (effSC === 'low') scText = 'Low';
-
-                    let tcText = 'Pending';
-                    if (effTC === 'all') tcText = 'All';
-                    else if (effTC === 'some') tcText = 'Some';
-                    else if (effTC === 'none') tcText = 'None';
-
-                    html += `<tr class="${rowClass}">
-                        <td><b>${n}</b></td>
-                        <td>${scText}</td>
-                        <td>${tcText}</td>
-                        <td><b>${smileys ? '1 😊' : '0'}</b></td>
-                    </tr>`;
-                }
+                html += `<tr class="${rowClass}"><td>${name}</td><td>${sc ? (sc === 'high' ? 'High 😊' : sc) : 'Not Set'}</td></tr>`;
             });
             html += `</table>`;
+            container.innerHTML = html;
         } else {
-            html = `<table><tr><th>Student</th><th>Total Smileys Earned</th><th>Weekly Reflections Completed</th></tr>`;
-            const allStudents = Array.from(new Set([...(db.regularNames || []), ...(db.mathsNames || [])])).sort();
-            const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-            const blocks = ['Block 1', 'Block 2', 'Block 3', 'Maths'];
-
-            allStudents.forEach(n => {
-                let totalSmileys = 0;
-                let studentWeeklyReflections = [];
-
+            let html = `<h4>Weekly Summary (${isMaths ? 'Maths' : 'Regular Class'})</h4><table><tr><th>Student</th><th>High 😊</th><th>Limited</th><th>Low</th></tr>`;
+            roster.forEach(name => {
+                let totals = { high: 0, limited: 0, low: 0 };
+                const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
                 days.forEach(d => {
-                    blocks.forEach(b => {
-                        const refKey = `${d}-${b}`;
-                        const isMathsBlock = b === 'Maths';
-                        const inRoster = isMathsBlock ? (db.mathsNames || []).includes(n) : (db.regularNames || []).includes(n);
-
-                        if (inRoster) {
-                            const effSC = getEffectiveSC(refKey, n, d);
-                            if (effSC === 'high') totalSmileys++;
-
-                            const refData = db.reflections[refKey]?.[n];
-                            if (refData && refData.reflectionAnswers) {
-                                studentWeeklyReflections.push({
-                                    blockKey: refKey,
-                                    answers: refData.reflectionAnswers
-                                });
-                            }
-                        }
-                    });
+                    const counts = getSelfControlCountsForDay(name, d, isMaths ? 'maths' : 'regular');
+                    totals.high += counts.high;
+                    totals.limited += counts.limited;
+                    totals.low += counts.low;
                 });
 
-                const scCounts = getSelfControlCountsForDay(n, day);
-                let rowClass = 'row-good';
-                if (scCounts.low >= 2) rowClass = 'row-bad';
-
-                const sheetComplete = totalSmileys >= 15;
-                const statusBadge = sheetComplete 
-                    ? `<span style="color:var(--success); font-weight:bold;">🎉 COMPLETE! (${totalSmileys}/15)</span>` 
-                    : `${totalSmileys} / 15 😊`;
-
-                let reflectionsHtml = `<span style="opacity:0.6;">No reflections recorded</span>`;
-                if (studentWeeklyReflections.length > 0) {
-                    reflectionsHtml = `<details class="weekly-reflection-box">
-                        <summary>💭 View ${studentWeeklyReflections.length} Reflection(s)</summary>
-                        <div style="margin-top:6px; display:flex; flex-direction:column; gap:6px;">`;
-                    
-                    studentWeeklyReflections.forEach(item => {
-                        const ans = item.answers;
-                        reflectionsHtml += `
-                            <div style="border-bottom:1px dashed var(--border); padding-bottom:4px;">
-                                <b>📌 ${item.blockKey} (${ans.timestamp || ''})</b><br>
-                                <b>Issue:</b> ${ans.q1}<br>
-                                <b>Focus Value:</b> ${ans.q2}<br>
-                                <b>Action:</b> ${ans.q3}
-                            </div>`;
-                    });
-
-                    reflectionsHtml += `</div></details>`;
-                }
-
-                html += `<tr class="${rowClass}">
-                    <td><b>${n}</b></td>
-                    <td><b>${statusBadge}</b></td>
-                    <td style="text-align:left;">${reflectionsHtml}</td>
-                </tr>`;
+                html += `<tr><td>${name}</td><td>${totals.high}</td><td>${totals.limited}</td><td>${totals.low}</td></tr>`;
             });
             html += `</table>`;
+            container.innerHTML = html;
         }
 
-        document.getElementById('summaryContent').innerHTML = html;
         document.getElementById('summaryModal').style.display = 'flex';
     }
-
-    async function exportToGoogleSheets() {
-        const GOOGLE_WEBAPP_URL = "https://script.google.com/a/macros/mangawhaibeach.school.nz/s/AKfycbzTIkYnZO6oBJRh86tQStS6iWlPmJbzMfkl3j2r1b-cAIu1EnuazNrahk2wzP4a2XQ_/exec";
-        const btn = document.getElementById('exportBtn');
-        btn.innerText = "Exporting..."; btn.disabled = true;
-        const key = getKey();
-        const day = document.getElementById('daySelect').value;
-        const roster = getCurrentRoster();
-
-        const payload = roster.map(name => ({
-            name: name, 
-            block: key,
-            selfControl: getEffectiveSC(key, name, day) || 'Pending',
-            taskCompletion: getEffectiveTC(key, name, day) || 'Pending',
-            absent: !!(db.absentDay[day]?.[name] || db.reflections[key]?.[name]?.absent)
-        }));
-
-        try {
-            await fetch(GOOGLE_WEBAPP_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-            alert("Summary successfully posted to Google Sheet!");
-        } catch(e) { 
-            alert("Error connecting to Google Sheets script."); 
-        } finally { 
-            btn.innerText = "🚀 Export"; btn.disabled = false; 
-        }
-    }
-
-    loadView();
 </script>
+
 </body>
 </html>
