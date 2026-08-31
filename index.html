@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Whakaute - Reflection Board</title>
 
-    <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
@@ -113,7 +112,6 @@
             overflow: hidden; text-overflow: ellipsis; max-width: 60px; color: var(--text);
         }
         
-        /* PROMINENT SMILEY COUNTER BADGE */
         .smiley-badge { 
             font-size: 0.75rem; 
             font-weight: 900; 
@@ -235,7 +233,6 @@
     <div class="student-grid" id="studentGrid"></div>
 </div>
 
-<!-- Student Reflection Form Modal -->
 <div id="reflectionModal" class="modal">
     <div class="modal-card">
         <h2 style="margin-top:0; color:var(--primary); text-align:center; font-size:1.2rem;">💭 Whakaute Private Practice Reflection</h2>
@@ -274,7 +271,6 @@
     </div>
 </div>
 
-<!-- Teacher Response Viewer Modal -->
 <div id="responseViewerModal" class="modal">
     <div class="modal-card">
         <h3 id="responseViewerTitle" style="margin-top:0;">Student Reflection</h3>
@@ -283,7 +279,6 @@
     </div>
 </div>
 
-<!-- Summary Modal -->
 <div id="summaryModal" class="modal">
     <div class="modal-card">
         <div style="display:flex; gap:4px; border-bottom:1px solid var(--border); margin-bottom:10px;">
@@ -296,7 +291,6 @@
     </div>
 </div>
 
-<!-- Setup Modal -->
 <div id="setupModal" class="modal">
     <div class="modal-card">
         <h3>Manage Class Rosters & Weekly Reset</h3>
@@ -419,9 +413,20 @@
         return isBlockSubmitted(refKey) ? 'high' : null;
     }
 
+    // UPDATED FUNCTION: Counts Maths Block in with Regular Class students
     function getSelfControlCountsForDay(name, day, classType = 'regular') {
         let counts = { high: 0, limited: 0, low: 0, total: 0 };
-        const blocks = classType === 'maths' ? ['Maths'] : ['Block 1', 'Block 2', 'Block 3'];
+        let blocks = [];
+
+        const isRegularStudent = (db.regularNames || []).includes(name);
+
+        if (isRegularStudent) {
+            // Regular students tally Block 1, 2, 3 PLUS Maths Block
+            blocks = ['Block 1', 'Block 2', 'Block 3', 'Maths'];
+        } else {
+            // Non-regular students on Maths roster tally Maths block only
+            blocks = ['Maths'];
+        }
         
         blocks.forEach(blk => {
             const refKey = `${day}-${blk}`;
