@@ -74,8 +74,8 @@
         
         .student-grid { 
             display: grid; 
-            grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); 
-            gap: 5px; 
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); 
+            gap: 6px; 
             align-items: start; 
         }
 
@@ -83,7 +83,7 @@
             background: var(--panel); 
             border: 2px solid var(--border); 
             border-radius: 8px;
-            padding: 4px; 
+            padding: 5px; 
             display: flex; 
             flex-direction: column; 
             gap: 4px;
@@ -99,7 +99,6 @@
         }
         .student-card.absent-card { opacity: 0.45; background: var(--absent); color: white; }
 
-        /* Highlight state when Limited is selected */
         .student-card.limited-highlight {
             border: 2px solid var(--warning) !important;
             background: rgba(245, 158, 11, 0.06) !important;
@@ -110,9 +109,27 @@
             border-bottom: 2px solid var(--border); padding-bottom: 3px; 
         }
         .student-name { 
-            font-weight: 800; font-size: 0.82rem; white-space: nowrap; 
+            font-weight: 800; font-size: 0.85rem; white-space: nowrap; 
             overflow: hidden; text-overflow: ellipsis; max-width: 60px; color: var(--text);
         }
+        
+        /* PROMINENT SMILEY COUNTER BADGE */
+        .smiley-badge { 
+            font-size: 0.75rem; 
+            font-weight: 900; 
+            background: #dcfce7; 
+            color: #15803d; 
+            border: 1.5px solid #22c55e; 
+            padding: 1px 5px; 
+            border-radius: 6px; 
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        body.dark-mode .smiley-badge {
+            background: #052e16;
+            color: #4ade80;
+            border-color: #16a34a;
+        }
+
         .default-badge { font-size: 0.6rem; font-weight: bold; background: #0284c7; color: white; padding: 1px 3px; border-radius: 4px; }
         .flag-badge { font-size: 0.55rem; font-weight: bold; background: var(--danger); color: white; padding: 1px 3px; border-radius: 4px; }
         .probation-badge { font-size: 0.55rem; font-weight: bold; background: var(--danger); color: white; padding: 1px 3px; border-radius: 4px; }
@@ -172,7 +189,7 @@
         .btn-action.reflect-btn:hover { background: #ea580c; color: white; }
 
         .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; display: none; justify-content: center; align-items: center; padding: 15px; }
-        .modal-card { background: var(--panel); width: 100%; max-width: 600px; padding: 18px; border-radius: 12px; border: 1px solid var(--border); max-height: 85vh; overflow-y: auto; }
+        .modal-card { background: var(--panel); width: 100%; max-width: 650px; padding: 18px; border-radius: 12px; border: 1px solid var(--border); max-height: 85vh; overflow-y: auto; }
         .tab-btn { padding: 6px 12px; font-size: 0.75rem; border-radius: 6px 6px 0 0; border: 1px solid var(--border); background: var(--bg); cursor: pointer; }
         .tab-btn.active { background: var(--panel); font-weight: bold; border-bottom: none; }
         
@@ -271,7 +288,8 @@
     <div class="modal-card">
         <div style="display:flex; gap:4px; border-bottom:1px solid var(--border); margin-bottom:10px;">
             <button id="tabBlock" class="tab-btn active" onclick="showSummary('block')">Block Summary</button>
-            <button id="tabWeekly" class="tab-btn" onclick="showSummary('weekly')">Weekly Summary & Reflections</button>
+            <button id="tabWeekly" class="tab-btn" onclick="showSummary('weekly')">Current Weekly Summary</button>
+            <button id="tabArchive" class="tab-btn" onclick="showSummary('archive')">📁 Past Summaries</button>
         </div>
         <div id="summaryContent"></div>
         <button onclick="document.getElementById('summaryModal').style.display='none'" class="btn-primary" style="width:100%; padding:8px; margin-top:12px;">Close</button>
@@ -281,7 +299,7 @@
 <!-- Setup Modal -->
 <div id="setupModal" class="modal">
     <div class="modal-card">
-        <h3>Manage Class Rosters</h3>
+        <h3>Manage Class Rosters & Weekly Reset</h3>
         <label style="font-size:0.75rem; font-weight:bold;">Regular Class (Block 1, 2, 3):</label>
         <textarea id="regularInput" style="width:100%; height:80px; padding:6px; border-radius:6px; border:1px solid var(--border); margin-bottom:8px;"></textarea>
         
@@ -289,8 +307,13 @@
         <textarea id="mathsInput" style="width:100%; height:80px; padding:6px; border-radius:6px; border:1px solid var(--border); margin-bottom:8px;"></textarea>
         
         <button onclick="saveSettings()" class="btn-primary" style="width:100%; padding:8px; margin-top:8px;">Save Rosters</button>
-        <button onclick="resetAllDataForNewWeek()" style="background:var(--danger); color:white; border:none; width:100%; padding:8px; margin-top:12px; font-weight:bold;">⚠️ Clear Entire Week / Reset All</button>
-        <button onclick="document.getElementById('setupModal').style.display='none'" style="width:100%; padding:6px; margin-top:4px;">Cancel</button>
+        
+        <hr style="margin:16px 0; border:none; border-top:1px dashed var(--border);">
+        <h4 style="margin:0 0 8px 0; color:var(--primary);">Weekly Reset Operations</h4>
+        <button onclick="archiveAndResetWeek()" style="background:#0284c7; color:white; border:none; width:100%; padding:10px; font-weight:bold; border-radius:6px; margin-bottom:8px;">📁 Archive Current Week & Reset for New Week</button>
+        <button onclick="resetAllDataForNewWeek()" style="background:var(--danger); color:white; border:none; width:100%; padding:8px; font-weight:bold; border-radius:6px;">⚠️ Wipe Entire Database (No Archive)</button>
+        
+        <button onclick="document.getElementById('setupModal').style.display='none'" style="width:100%; padding:6px; margin-top:10px;">Cancel</button>
     </div>
 </div>
 
@@ -323,6 +346,7 @@
         reflections: {}, 
         absentDay: {},
         blockSubmitted: {},
+        weeklyArchives: {},
         darkMode: false
     };
 
@@ -364,6 +388,7 @@
             if(!db.reflections) db.reflections = {};
             if(!db.absentDay) db.absentDay = {};
             if(!db.blockSubmitted) db.blockSubmitted = {};
+            if(!db.weeklyArchives) db.weeklyArchives = {};
             loadView();
         }
     });
@@ -390,6 +415,7 @@
         const d = db.reflections[refKey]?.[name];
         if (d?.absent) return 'absent';
         if (d?.sc) return d.sc;
+        
         return isBlockSubmitted(refKey) ? 'high' : null;
     }
 
@@ -400,10 +426,13 @@
         blocks.forEach(blk => {
             const refKey = `${day}-${blk}`;
             const sc = getEffectiveSC(refKey, name, day);
-            if (sc === 'high') counts.high++;
-            if (sc === 'limited') counts.limited++;
-            if (sc === 'low') counts.low++;
-            if (sc && sc !== 'absent') counts.total++;
+            
+            if (isBlockSubmitted(refKey)) {
+                if (sc === 'high') counts.high++;
+                if (sc === 'limited') counts.limited++;
+                if (sc === 'low') counts.low++;
+                if (sc && sc !== 'absent') counts.total++;
+            }
         });
         return counts;
     }
@@ -500,13 +529,13 @@
     function submitCurrentBlock() {
         const key = getKey();
         if (isBlockSubmitted(key)) {
-            if (confirm(`Block ${key} is already submitted. Do you want to reopen it for editing?`)) {
+            if (confirm(`Block ${key} is currently submitted. Do you want to reopen it for editing?`)) {
                 if (!db.blockSubmitted) db.blockSubmitted = {};
                 db.blockSubmitted[key] = false;
                 save();
             }
         } else {
-            if (confirm(`Submit and complete ${key}?\n\nAll unclicked cards will automatically default to High Self-Control 😊.`)) {
+            if (confirm(`Submit and complete ${key}?\n\nAll unclicked cards will automatically complete as High Self-Control 😊.`)) {
                 if (!db.blockSubmitted) db.blockSubmitted = {};
                 db.blockSubmitted[key] = true;
                 save();
@@ -587,14 +616,65 @@
         }
     }
 
+    function archiveAndResetWeek() {
+        const defaultArchiveLabel = `Week ending ${new Date().toLocaleDateString('en-NZ', { day: 'numeric', month: 'short' })}`;
+        const archiveName = prompt("Enter a name or label for this week's archive summary:", defaultArchiveLabel);
+        
+        if (!archiveName) return;
+
+        if (!db.weeklyArchives) db.weeklyArchives = {};
+
+        let regularSummary = {};
+        let mathsSummary = {};
+        const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+
+        (db.regularNames || []).forEach(name => {
+            let totals = { high: 0, limited: 0, low: 0, totalSmileys: 0 };
+            days.forEach(d => {
+                const counts = getSelfControlCountsForDay(name, d, 'regular');
+                totals.high += counts.high;
+                totals.limited += counts.limited;
+                totals.low += counts.low;
+                totals.totalSmileys += counts.high;
+            });
+            regularSummary[name] = totals;
+        });
+
+        (db.mathsNames || []).forEach(name => {
+            let totals = { high: 0, limited: 0, low: 0, totalSmileys: 0 };
+            days.forEach(d => {
+                const counts = getSelfControlCountsForDay(name, d, 'maths');
+                totals.high += counts.high;
+                totals.limited += counts.limited;
+                totals.low += counts.low;
+                totals.totalSmileys += counts.high;
+            });
+            mathsSummary[name] = totals;
+        });
+
+        db.weeklyArchives[archiveName] = {
+            archivedDate: new Date().toLocaleDateString(),
+            regularSummary: regularSummary,
+            mathsSummary: mathsSummary
+        };
+
+        db.reflections = {};
+        db.absentDay = {};
+        db.blockSubmitted = {};
+        save();
+
+        document.getElementById('setupModal').style.display = 'none';
+        alert(`Success! Week archived as "${archiveName}" and the active board has been reset for the new week.`);
+    }
+
     function resetAllDataForNewWeek() {
-        if (confirm("⚠️ WARNING: This will delete ALL weekly data, ratings, block completions, and student reflections for EVERY day. Are you sure?")) {
+        if (confirm("⚠️ WARNING: This will delete ALL live weekly data without saving an archive. Are you sure?")) {
             db.reflections = {};
             db.absentDay = {};
             db.blockSubmitted = {};
             save();
             document.getElementById('setupModal').style.display = 'none';
-            alert("All weekly data cleared!");
+            alert("All active weekly data cleared!");
         }
     }
 
@@ -640,6 +720,7 @@
             const isDone = (effSC || submitted) && !isAbsentBlock && !isAbsentDay;
 
             const scCounts = getSelfControlCountsForDay(name, day, isMathsBlock ? 'maths' : 'regular');
+            const dailySmileysCount = scCounts.high; 
             const is3LowAutoFlagged = scCounts.low >= 3;
 
             let isTimerRunning = false;
@@ -671,14 +752,16 @@
             let cardClasses = ['student-card'];
             if (isDone) cardClasses.push('completed');
             if (isAbsentBlock || isAbsentDay) cardClasses.push('absent-card');
-            
             if (effSC === 'limited') cardClasses.push('limited-highlight');
 
             card.className = cardClasses.join(' ');
 
-            let cardContent = `
+            cardContent = `
                 <div class="card-header">
-                    <span class="student-name" title="${name}">${name}</span>
+                    <div style="display:flex; align-items:center; gap:4px; overflow:hidden;">
+                        <span class="student-name" title="${name}">${name}</span>
+                        <span class="smiley-badge" title="${dailySmileysCount} Smileys Earned Today">😊x${dailySmileysCount}</span>
+                    </div>
                     <div style="display:flex; gap:2px; align-items:center;">
                         ${data.reflectionSubmitted 
                             ? `<span class="response-badge" onclick="openResponseViewer('${name}')">💬 View</span>` 
@@ -700,9 +783,9 @@
                     <div class="metric-block">
                         <div class="metric-title">Self-Control</div>
                         <div class="btn-group">
-                            <button class="btn-opt ${effSC === 'high' ? 'selected-good' : ''}" onclick="setSC('${name}', 'high')">High 😊</button>
-                            <button class="btn-opt ${effSC === 'limited' ? 'selected-mid' : ''}" onclick="setSC('${name}', 'limited')">Limited</button>
-                            <button class="btn-opt ${effSC === 'low' ? 'selected-low' : ''}" onclick="setSC('${name}', 'low')">Low</button>
+                            <button class="btn-opt ${data.sc === 'high' || (submitted && !data.sc) ? 'selected-good' : ''}" onclick="setSC('${name}', 'high')">High 😊</button>
+                            <button class="btn-opt ${data.sc === 'limited' ? 'selected-mid' : ''}" onclick="setSC('${name}', 'limited')">Limited</button>
+                            <button class="btn-opt ${data.sc === 'low' ? 'selected-low' : ''}" onclick="setSC('${name}', 'low')">Low</button>
                         </div>
                     </div>
                 `;
@@ -761,9 +844,11 @@
 
         document.getElementById('tabBlock').classList.toggle('active', tab === 'block');
         document.getElementById('tabWeekly').classList.toggle('active', tab === 'weekly');
+        document.getElementById('tabArchive').classList.toggle('active', tab === 'archive');
 
         if (tab === 'block') {
-            let html = `<h4>Block Summary: ${key}</h4><table><tr><th>Student</th><th>Self Control</th></tr>`;
+            const submitted = isBlockSubmitted(key);
+            let html = `<h4>Block Summary: ${key} ${submitted ? '(Completed)' : '(In Progress - Unsubmitted)'}</h4><table><tr><th>Student</th><th>Self Control</th><th>Smileys Earned</th></tr>`;
             roster.forEach(name => {
                 const sc = getEffectiveSC(key, name, day);
                 let rowClass = '';
@@ -772,12 +857,13 @@
                 else if (sc === 'low') rowClass = 'row-bad';
                 else if (sc === 'absent') rowClass = 'row-absent';
 
-                html += `<tr class="${rowClass}"><td>${name}</td><td>${sc ? (sc === 'high' ? 'High 😊' : sc) : 'Not Set'}</td></tr>`;
+                const smileysEarned = (submitted && sc === 'high') ? '😊 (+1)' : '-';
+                html += `<tr class="${rowClass}"><td>${name}</td><td>${sc ? (sc === 'high' ? 'High 😊' : sc) : 'In Progress'}</td><td>${smileysEarned}</td></tr>`;
             });
             html += `</table>`;
             container.innerHTML = html;
-        } else {
-            let html = `<h4>Weekly Summary (${isMaths ? 'Maths' : 'Regular Class'})</h4><table><tr><th>Student</th><th>High 😊</th><th>Limited</th><th>Low</th></tr>`;
+        } else if (tab === 'weekly') {
+            let html = `<h4>Current Weekly Summary (${isMaths ? 'Maths Class' : 'Regular Class'})</h4><table><tr><th>Student</th><th>High 😊</th><th>Limited</th><th>Low</th><th>Total Weekly Smileys</th></tr>`;
             roster.forEach(name => {
                 let totals = { high: 0, limited: 0, low: 0 };
                 const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
@@ -788,13 +874,52 @@
                     totals.low += counts.low;
                 });
 
-                html += `<tr><td>${name}</td><td>${totals.high}</td><td>${totals.limited}</td><td>${totals.low}</td></tr>`;
+                html += `<tr><td><b>${name}</b></td><td>${totals.high}</td><td>${totals.limited}</td><td>${totals.low}</td><td><b style="color:var(--success);">😊 x${totals.high}</b></td></tr>`;
             });
             html += `</table>`;
             container.innerHTML = html;
+        } else if (tab === 'archive') {
+            const archives = db.weeklyArchives || {};
+            const archiveKeys = Object.keys(archives);
+
+            if (archiveKeys.length === 0) {
+                container.innerHTML = `<p style="text-align:center; color:var(--absent); padding:20px;">No past weekly archives found. Use the <b>Setup (⚙️)</b> menu to archive weeks when resetting.</p>`;
+            } else {
+                let html = `<h4>Past Weekly Summaries</h4>
+                    <label style="font-size:0.8rem; font-weight:bold;">Select Past Week Archive:</label>
+                    <select id="archiveSelector" onchange="renderSelectedArchive()" style="width:100%; margin-bottom:12px; padding:6px;">
+                `;
+                archiveKeys.forEach(aKey => {
+                    html += `<option value="${aKey}">${aKey} (Archived ${archives[aKey].archivedDate})</option>`;
+                });
+                html += `</select><div id="archiveDisplayTable"></div>`;
+                container.innerHTML = html;
+                renderSelectedArchive();
+            }
         }
 
         document.getElementById('summaryModal').style.display = 'flex';
+    }
+
+    function renderSelectedArchive() {
+        const selector = document.getElementById('archiveSelector');
+        if (!selector) return;
+        const selectedKey = selector.value;
+        const archiveData = db.weeklyArchives?.[selectedKey];
+        const displayDiv = document.getElementById('archiveDisplayTable');
+        
+        if (!archiveData) return;
+
+        const isMaths = document.getElementById('blockSelect').value === 'Maths';
+        const summaryObj = isMaths ? archiveData.mathsSummary : archiveData.regularSummary;
+
+        let html = `<table><tr><th>Student</th><th>High 😊</th><th>Limited</th><th>Low</th><th>Total Smileys</th></tr>`;
+        Object.keys(summaryObj || {}).forEach(name => {
+            const stat = summaryObj[name];
+            html += `<tr><td><b>${name}</b></td><td>${stat.high}</td><td>${stat.limited}</td><td>${stat.low}</td><td><b style="color:var(--success);">😊 x${stat.totalSmileys}</b></td></tr>`;
+        });
+        html += `</table>`;
+        displayDiv.innerHTML = html;
     }
 </script>
 
