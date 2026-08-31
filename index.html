@@ -418,31 +418,48 @@
         return isBlockSubmitted(refKey) ? 'high' : null;
     }
 
-    // STRICT SUBMISSION CHECK FIX: Only count smileys for blocks that have actually been SUBMITTED
+    // STRICT 1-SMILEY-PER-DAY CALCULATION
     function getSelfControlCountsForDay(name, day, classType = 'regular') {
         let counts = { high: 0, limited: 0, low: 0, total: 0 };
-        let blocks = [];
+        
+        // 1. If absent for the whole day -> 0 smileys
+        if (db.absentDay[day]?.[name]) {
+            return counts;
+        }
 
+        let blocks = [];
         const isRegularStudent = (db.regularNames || []).includes(name);
 
-        if (isRegularStudent) {
-            blocks = ['Block 1', 'Block 2', 'Block 3', 'Maths'];
-        } else {
+        if (classType === 'maths') {
             blocks = ['Maths'];
+        } else {
+            blocks = isRegularStudent ? ['Block 1', 'Block 2', 'Block 3', 'Maths'] : ['Maths'];
         }
         
+        let submittedCount = 0;
+        let highCount = 0;
+        let hasLow = false;
+
         blocks.forEach(blk => {
             const refKey = `${day}-${blk}`;
-            
-            // CRITICAL FIX: Only include calculations if this specific block was explicitly submitted
             if (isBlockSubmitted(refKey)) {
+                submittedCount++;
                 const sc = getEffectiveSC(refKey, name, day);
-                if (sc === 'high') counts.high++;
+                if (sc === 'high') highCount++;
                 if (sc === 'limited') counts.limited++;
-                if (sc === 'low') counts.low++;
-                if (sc && sc !== 'absent') counts.total++;
+                if (sc === 'low') {
+                    counts.low++;
+                    hasLow = true;
+                }
             }
         });
+
+        // Award MAX 1 Smiley for the day if the student was present, had submitted blocks, and didn't get a Low
+        if (submittedCount > 0 && highCount > 0 && !hasLow) {
+            counts.high = 1;
+            counts.total = 1;
+        }
+
         return counts;
     }
 
@@ -769,7 +786,7 @@
                 <div class="card-header">
                     <div style="display:flex; align-items:center; gap:4px; overflow:hidden;">
                         <span class="student-name" title="${name}">${name}</span>
-                        <span class="smiley-badge" title="${dailySmileysCount} Smileys Earned Today">😊x${dailySmileysCount}</span>
+                        <span class="smiley-badge" title="${dailySmileysCount} Smiley Earned Today">😊x${dailySmileysCount}</span>
                     </div>
                     <div style="display:flex; gap:2px; align-items:center;">
                         ${data.reflectionSubmitted 
@@ -857,7 +874,7 @@
 
         if (tab === 'block') {
             const submitted = isBlockSubmitted(key);
-            let html = `<h4>Block Summary: ${key} ${submitted ? '(Completed)' : '(In Progress - Unsubmitted)'}</h4><table><tr><th>Student</th><th>Self Control</th><th>Smileys Earned</th></tr>`;
+            let html = `<h4>Block Summary: ${key} ${submitted ? '(Completed)' : '(In Progress - Unsubmitted)'}</h4><table><tr><th>Student</th><th>Self Control</th></tr>`;
             roster.forEach(name => {
                 const sc = getEffectiveSC(key, name, day);
                 let rowClass = '';
@@ -866,13 +883,12 @@
                 else if (sc === 'low') rowClass = 'row-bad';
                 else if (sc === 'absent') rowClass = 'row-absent';
 
-                const smileysEarned = (submitted && sc === 'high') ? '😊 (+1)' : '-';
-                html += `<tr class="${rowClass}"><td>${name}</td><td>${sc ? (sc === 'high' ? 'High 😊' : sc) : 'In Progress'}</td><td>${smileysEarned}</td></tr>`;
+                html += `<tr class="${rowClass}"><td>${name}</td><td>${sc ? (sc === 'high' ? 'High 😊' : sc) : 'In Progress'}</td></tr>`;
             });
             html += `</table>`;
             container.innerHTML = html;
         } else if (tab === 'weekly') {
-            let html = `<h4>Current Weekly Summary (${isMaths ? 'Maths Class' : 'Regular Class'})</h4><table><tr><th>Student</th><th>High 😊</th><th>Limited</th><th>Low</th><th>Total Weekly Smileys</th></tr>`;
+            let html = `<h4>Current Weekly Summary (${isMaths ? 'Maths Class' : 'Regular Class'})</h4><table><tr><th>Student</th><th>Days Present</th><th>Low Blocks</th><th>Total Weekly Smileys (Max 5)</th></tr>`;
             roster.forEach(name => {
                 let totals = { high: 0, limited: 0, low: 0 };
                 const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
@@ -883,7 +899,7 @@
                     totals.low += counts.low;
                 });
 
-                html += `<tr><td><b>${name}</b></td><td>${totals.high}</td><td>${totals.limited}</td><td>${totals.low}</td><td><b style="color:var(--success);">😊 x${totals.high}</b></td></tr>`;
+                html += `<tr><td><b>${name}</b></td><td>${totals.high}</td><td>${totals.low}</td><td><b style="color:var(--success);">😊 x${totals.high}</b></td></tr>`;
             });
             html += `</table>`;
             container.innerHTML = html;
@@ -922,10 +938,10 @@
         const isMaths = document.getElementById('blockSelect').value === 'Maths';
         const summaryObj = isMaths ? archiveData.mathsSummary : archiveData.regularSummary;
 
-        let html = `<table><tr><th>Student</th><th>High 😊</th><th>Limited</th><th>Low</th><th>Total Smileys</th></tr>`;
+        let html = `<table><tr><th>Student</th><th>Low Blocks</th><th>Total Smileys (Max 5)</th></tr>`;
         Object.keys(summaryObj || {}).forEach(name => {
             const stat = summaryObj[name];
-            html += `<tr><td><b>${name}</b></td><td>${stat.high}</td><td>${stat.limited}</td><td>${stat.low}</td><td><b style="color:var(--success);">😊 x${stat.totalSmileys}</b></td></tr>`;
+            html += `<tr><td><b>${name}</b></td><td>${stat.low}</td><td><b style="color:var(--success);">😊 x${stat.totalSmileys}</b></td></tr>`;
         });
         html += `</table>`;
         displayDiv.innerHTML = html;
@@ -933,4 +949,4 @@
 </script>
 
 </body>
-</html>s
+</html>
