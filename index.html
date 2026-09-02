@@ -1,87 +1,677 @@
-// Updated Smiley Tally: Excludes Limited or Low entries
-function getSelfControlCountsForDay(name, day, classType = 'regular') {
-    let counts = { high: 0, limited: 0, low: 0, total: 0 };
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Classroom Culture & Focus Board</title>
+    <style>
+        :root {
+            --bg: #f8fafc;
+            --panel: #ffffff;
+            --text: #0f172a;
+            --primary: #2563eb;
+            --success: #16a34a;
+            --success-bg: #dcfce7;
+            --warning: #d97706;
+            --warning-bg: #ffedd5;
+            --danger: #dc2626;
+            --border: #cbd5e1;
+            --gold: #f59e0b;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 16px;
+            box-sizing: border-box;
+        }
+
+        /* Top Bar with Class & Goal Switchers */
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--panel);
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .class-select, .goal-select {
+            padding: 6px 12px;
+            font-size: 0.95rem;
+            font-weight: bold;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--bg);
+            color: var(--text);
+            cursor: pointer;
+        }
+
+        /* Prominent Weekly Goal Banner */
+        .weekly-banner {
+            background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+            color: white;
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .weekly-banner-content { flex: 1; min-width: 280px; }
+        .weekly-tag { 
+            background: rgba(255, 255, 255, 0.2); 
+            text-transform: uppercase; 
+            font-size: 0.75rem; 
+            font-weight: 900; 
+            letter-spacing: 1px; 
+            padding: 3px 8px; 
+            border-radius: 4px;
+            display: inline-block;
+            margin-bottom: 4px;
+        }
+
+        .weekly-title { font-size: 1.6rem; font-weight: 900; margin: 0 0 4px 0; }
+        .weekly-desc { font-size: 0.95rem; opacity: 0.9; margin: 0; }
+
+        .toggle-btn {
+            background: #334155;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.85rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        /* 3 Core Pillars */
+        .expectations-bar {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .exp-card {
+            background: var(--panel);
+            border-top: 4px solid var(--primary);
+            padding: 10px 14px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            border-left: 1px solid var(--border);
+            border-right: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .exp-card h4 { margin: 0 0 2px 0; font-size: 0.9rem; text-transform: uppercase; }
+        .exp-card p { margin: 0; font-size: 0.78rem; opacity: 0.85; }
+
+        /* Recognition Grid */
+        .public-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .student-card-public {
+            background: var(--panel);
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            padding: 12px 10px;
+            text-align: center;
+            transition: all 0.15s ease-in-out;
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+        }
+
+        .student-card-public:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+        }
+
+        .student-card-public:active {
+            transform: scale(0.97);
+        }
+
+        /* Minus Button for Mistake Correction on Public Board */
+        .minus-btn-public {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            background: #e2e8f0;
+            color: #475569;
+            border: 1px solid #cbd5e1;
+            border-radius: 50%;
+            width: 22px;
+            height: 22px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .minus-btn-public:hover {
+            background: #fee2e2;
+            color: #991b1b;
+            border-color: #fca5a5;
+        }
+
+        /* Highlight States */
+        .student-card-public.target-met {
+            border-color: var(--success);
+            background: var(--success-bg);
+        }
+
+        .student-card-public.above-beyond {
+            border-color: var(--gold);
+            background: #fffbeb;
+            box-shadow: 0 4px 10px rgba(245, 158, 11, 0.25);
+        }
+
+        .student-card-public.needs-focus-orange {
+            border-color: var(--warning);
+            background: var(--warning-bg);
+        }
+
+        .student-card-public.not-yet {
+            border-color: #cbd5e1;
+            background: #f1f5f9;
+            opacity: 0.85;
+        }
+
+        .student-name { font-weight: 800; font-size: 1.1rem; margin-bottom: 6px; margin-top: 4px; }
+
+        .badge-container {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            align-items: center;
+        }
+
+        .badge {
+            font-size: 0.72rem;
+            font-weight: 800;
+            padding: 3px 8px;
+            border-radius: 6px;
+            width: 90%;
+            text-transform: uppercase;
+        }
+        .badge-target { background: #bbf7d0; color: #166534; border: 1px solid #86efac; }
+        .badge-ab { background: #fef3c7; color: #92400e; border: 1px solid #fde047; }
+        .badge-orange { background: #fed7aa; color: #9a3412; border: 1px solid #fdba74; }
+        .badge-notyet { background: #e2e8f0; color: #475569; border: 1px solid #cbd5e1; }
+
+        /* Section Titles for Public View */
+        .section-title {
+            margin: 16px 0 8px 0;
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #475569;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Private Panel */
+        .private-panel {
+            display: none;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px;
+        }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid var(--border); padding: 8px 10px; text-align: left; font-size: 0.85rem; }
+        th { background: #f1f5f9; }
+
+        .btn-action {
+            padding: 5px 8px;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+
+        .btn-warn { background: #fef3c7; color: #92400e; }
+        .btn-remove { background: #fee2e2; color: #991b1b; }
+        .btn-chat { background: #e0e7ff; color: #3730a3; }
+        .btn-practice { background: #f3e8ff; color: #6b21a8; }
+        
+        .status-pill {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            margin-right: 2px;
+        }
+        .st-warning { background: #fef3c7; color: #92400e; }
+        .st-removed { background: #fee2e2; color: #991b1b; }
+        .st-chat { background: #e0e7ff; color: #3730a3; }
+        .st-practice { background: #f3e8ff; color: #6b21a8; }
+    </style>
+</head>
+<body>
+
+<!-- TOP CONTROL BAR -->
+<div class="top-bar">
+    <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+        <div>
+            <label for="classSelect" style="font-weight:bold; margin-right:4px;">Class:</label>
+            <select id="classSelect" class="class-select" onchange="switchClass()">
+                <option value="myClass">My Class</option>
+                <option value="mathsClass">Maths Class</option>
+            </select>
+        </div>
+        <div>
+            <label for="goalPresetSelect" style="font-weight:bold; margin-right:4px;">Class Goal Focus:</label>
+            <select id="goalPresetSelect" class="goal-select" onchange="applyGoalPreset()">
+                <option value="raisingHand">✋ Raising Hand & No Calling Out</option>
+                <option value="keepingToSelf">🧘 Keeping Hands & Feet to Yourself</option>
+                <option value="organisedToWork">🎒 Organized & Ready to Work</option>
+                <option value="tidyBookwork">✏️ Tidy & Neat Bookwork</option>
+                <option value="taskCompletion">✅ Complete Task on Time</option>
+                <option value="respectEveryone">🤝 Treating Everyone Respectfully</option>
+                <option value="listeningFirstTime">👂 Listening & Following Instructions First Time</option>
+                <option value="deviceDiscipline">💻 Responsible Device & Technology Use</option>
+                <option value="safeMovement">🚶 Safe & Calm Movement in Class</option>
+                <option value="quickTransitions">⚡ Quick & Quiet Transitions</option>
+                <option value="positiveTeamwork">🌟 Positive Teamwork & Inclusion</option>
+                <option value="custom">⚙️ Custom Goal...</option>
+            </select>
+        </div>
+    </div>
+    <div>
+        <button class="toggle-btn" onclick="toggleView()" id="viewToggleBtn">🔒 Switch to Private Teacher Console</button>
+    </div>
+</div>
+
+<!-- PROMINENT WEEKLY FOCUS BANNER -->
+<div class="weekly-banner">
+    <div class="weekly-banner-content">
+        <span class="weekly-tag">🎯 FOCUS OF THE WEEK</span>
+        <h1 class="weekly-title" id="displayGoalTitle">Raising Hand & No Calling Out</h1>
+        <p class="weekly-desc" id="displayGoalDesc">Raise your hand quietly and wait to be called on before speaking during lessons.</p>
+    </div>
+</div>
+
+<!-- 3 CORE PILLARS -->
+<div class="expectations-bar">
+    <div class="exp-card" style="border-color: #2563eb;">
+        <h4>1. Are You Ready?</h4>
+        <p>Prepared with materials, seated, and ready to learn.</p>
+    </div>
+    <div class="exp-card" style="border-color: #16a34a;">
+        <h4>2. Are You Respectful?</h4>
+        <p>Valuing yourself, peers, teacher, and school equipment.</p>
+    </div>
+    <div class="exp-card" style="border-color: #d97706;">
+        <h4>3. Are You Safe?</h4>
+        <p>Making choices that keep minds and bodies secure.</p>
+    </div>
+</div>
+
+<!-- PUBLIC RECOGNITION BOARD -->
+<div id="publicView">
+    <p style="font-size:0.85rem; color:#64748b; margin-top:-10px;">💡 Click a student's card to add positive points. Click the small <b>(−)</b> in the top-right corner of any card to fix accidental clicks.</p>
     
-    // 1. If absent for the whole day -> 0 smileys
-    if (db.absentDay[day]?.[name]) {
-        return counts;
-    }
+    <div class="section-title">🌟 Goal Achievers</div>
+    <div class="public-grid" id="publicGrid"></div>
 
-    let blocks = [];
-    const isRegularStudent = (db.regularNames || []).includes(name);
+    <div class="section-title" id="pendingSectionTitle" style="color: #64748b;">💬 Working Towards Goal</div>
+    <div class="public-grid" id="unclickedGrid"></div>
+</div>
 
-    if (classType === 'maths') {
-        blocks = ['Maths'];
-    } else {
-        blocks = isRegularStudent ? ['Block 1', 'Block 2', 'Block 3', 'Maths'] : ['Maths'];
-    }
+<!-- PRIVATE TEACHER MANAGEMENT CONSOLE -->
+<div id="privateView" class="private-panel">
+    <h3 style="margin-top:0; color:var(--danger);">🔒 Private Intervention & Goal Console</h3>
+
+    <!-- Custom Goal Editor -->
+    <div style="background: #f8fafc; padding:12px; border-radius:8px; border:1px solid var(--border); margin-bottom:16px;">
+        <h4 style="margin:0 0 8px 0;">Edit Custom Goal & Description for Active Class</h4>
+        <div style="display:flex; gap:8px;">
+            <input type="text" id="inputGoalTitle" style="flex:1; padding:6px;" placeholder="Goal Focus Name...">
+            <input type="text" id="inputGoalDesc" style="flex:2; padding:6px;" placeholder="Target behavior description...">
+            <button onclick="updateGoalCustom()" class="btn-action" style="background:var(--primary); color:white;">Update Banner</button>
+        </div>
+    </div>
     
-    let submittedCount = 0;
-    let highCount = 0;
-    let hasIssues = false;
+    <table>
+        <thead>
+            <tr>
+                <th>Student</th>
+                <th>Public Count / Recognition</th>
+                <th>Intervention Stage (Private)</th>
+                <th>Log Intervention</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="privateTableBody"></tbody>
+    </table>
+    
+    <div style="margin-top:16px;">
+        <button class="btn-action" style="background:#fee2e2; color:#991b1b; padding:8px 12px;" onclick="resetClassPoints()">🔄 Reset Class Progress for New Week</button>
+    </div>
+</div>
 
-    blocks.forEach(blk => {
-        const refKey = `${day}-${blk}`;
-        if (isBlockSubmitted(refKey)) {
-            submittedCount++;
-            const sc = getEffectiveSC(refKey, name, day);
-            if (sc === 'high') highCount++;
-            if (sc === 'limited') {
-                counts.limited++;
-                hasIssues = true; // Exclude smiley if limited is present
-            }
-            if (sc === 'low') {
-                counts.low++;
-                hasIssues = true; // Exclude smiley if low is present
+<script>
+    const goalPresets = {
+        raisingHand: {
+            title: "Raising Hand & No Calling Out",
+            desc: "Raise your hand quietly and wait to be called on before speaking during lessons."
+        },
+        keepingToSelf: {
+            title: "Keeping Hands, Feet & Words to Yourself",
+            desc: "Respect personal space and keep your body and comments to yourself."
+        },
+        organisedToWork: {
+            title: "Organized & Ready to Work",
+            desc: "Have all necessary supplies out, desk clear, and be ready when work begins."
+        },
+        tidyBookwork: {
+            title: "Tidy & Neat Bookwork",
+            desc: "Take pride in your presentation with clear headings, dates, and neat handwriting."
+        },
+        taskCompletion: {
+            title: "Completing Tasks on Time",
+            desc: "Stay focused, minimize distractions, and complete all set tasks within the allocated time."
+        },
+        respectEveryone: {
+            title: "Treating Everyone Respectfully",
+            desc: "Speak kindly, use good manners, and show respect to peers, staff, and visitors."
+        },
+        listeningFirstTime: {
+            title: "Listening & Following Instructions First Time",
+            desc: "Stop, look, listen, and follow teacher directions right away without needing reminders."
+        },
+        deviceDiscipline: {
+            title: "Responsible Device & Technology Use",
+            desc: "Stay only on assigned apps/websites and close laptops promptly when asked."
+        },
+        safeMovement: {
+            title: "Safe & Calm Movement in Class",
+            desc: "Walk safely around the room and move quietly without disrupting others."
+        },
+        quickTransitions: {
+            title: "Quick & Quiet Transitions",
+            desc: "Pack up quickly and move smoothly into the next lesson in under 30 seconds."
+        },
+        positiveTeamwork: {
+            title: "Positive Teamwork & Inclusion",
+            desc: "Include everyone in group activities, share tasks, and encourage your team."
+        }
+    };
+
+    const rosters = {
+        myClass: [
+            "Aiden", "Aleigha", "Ameila", "Arlo", "Ava", "Coby", "Ella", "Eris", 
+            "Freya", "Griffin", "Harley", "Henry", "Jake", "Jakey", "Kohen", "Levi", 
+            "Lex", "Leyton", "Reggie", "Ryder", "Scarlett", "Skyla"
+        ],
+        mathsClass: [
+            "Aiden", "Amelia", "Annabelle", "Ava", "Ruby", "Marlo", "Blake", "Brody", 
+            "Coby", "Eris", "Freya", "Harley", "Harper", "Henry", "Hendrix", "Indie G", 
+            "Indie M", "Jakey", "Lex", "Natalija", "Reggie", "Ryder", "Skyla", "Siena", 
+            "Tayla", "Zac"
+        ]
+    };
+
+    let activeClassKey = 'myClass';
+
+    let state = JSON.parse(localStorage.getItem('class_culture_multi_state_v7')) || {
+        classes: {
+            myClass: {
+                selectedPresetKey: "raisingHand",
+                goalTitle: goalPresets.raisingHand.title,
+                goalDesc: goalPresets.raisingHand.desc,
+                students: rosters.myClass.map(name => createStudentObj(name))
+            },
+            mathsClass: {
+                selectedPresetKey: "tidyBookwork",
+                goalTitle: goalPresets.tidyBookwork.title,
+                goalDesc: goalPresets.tidyBookwork.desc,
+                students: rosters.mathsClass.map(name => createStudentObj(name))
             }
         }
-    });
+    };
 
-    // Award MAX 1 Smiley for the day ONLY if present, submitted, and NO limited/low clicked
-    if (submittedCount > 0 && highCount > 0 && !hasIssues) {
-        counts.high = 1;
-        counts.total = 1;
+    function createStudentObj(name) {
+        return {
+            name: name,
+            count: 0,
+            aboveBeyond: false,
+            warning: false,
+            removed: false,
+            restorativeChat: false,
+            privatePractice: false
+        };
     }
 
-    return counts;
-}
+    let isPrivateView = false;
 
-// Fixed Low Click Cycle: 
-// Click 1 = 15m Timer | Click 2 = Private Practice at Break | Click 3 = Reset
-function handleLowClick(name) {
-    const key = getKey();
-    if (!db.reflections[key]) db.reflections[key] = {};
-    if (!db.reflections[key][name]) db.reflections[key][name] = {};
-
-    const data = db.reflections[key][name];
-    
-    // If transitioning from non-low rating, start clean at step 0
-    if (data.sc !== 'low') {
-        data.lowStage = 0;
+    function saveData() {
+        localStorage.setItem('class_culture_multi_state_v7', JSON.stringify(state));
+        render();
     }
 
-    // Advance to next stage (1 -> 2 -> 0)
-    let nextStage = ((data.lowStage || 0) % 3) + 1;
-
-    if (nextStage === 1) {
-        // First click: Start 15-minute Timer
-        data.sc = 'low';
-        data.lowStage = 1;
-        data.lowTimerStart = Date.now();
-        delete data.returningAtBreak;
-    } else if (nextStage === 2) {
-        // Second click: Switch directly to Private Practice at Break
-        data.sc = 'low';
-        data.lowStage = 2;
-        data.returningAtBreak = true;
-        delete data.lowTimerStart;
-    } else {
-        // Third click: Clear rating back to unselected
-        data.sc = null;
-        data.lowStage = 0;
-        delete data.lowTimerStart;
-        delete data.returningAtBreak;
+    function switchClass() {
+        activeClassKey = document.getElementById('classSelect').value;
+        render();
     }
 
-    save();
-}
+    function applyGoalPreset() {
+        const selectedKey = document.getElementById('goalPresetSelect').value;
+        const currentClassObj = state.classes[activeClassKey];
+        
+        currentClassObj.selectedPresetKey = selectedKey;
+        
+        if (selectedKey !== 'custom' && goalPresets[selectedKey]) {
+            currentClassObj.goalTitle = goalPresets[selectedKey].title;
+            currentClassObj.goalDesc = goalPresets[selectedKey].desc;
+        }
+        saveData();
+    }
+
+    function updateGoalCustom() {
+        const title = document.getElementById('inputGoalTitle').value.trim();
+        const desc = document.getElementById('inputGoalDesc').value.trim();
+        const currentClassObj = state.classes[activeClassKey];
+
+        if (title) currentClassObj.goalTitle = title;
+        if (desc) currentClassObj.goalDesc = desc;
+        currentClassObj.selectedPresetKey = 'custom';
+        document.getElementById('goalPresetSelect').value = 'custom';
+        saveData();
+    }
+
+    function toggleView() {
+        isPrivateView = !isPrivateView;
+        document.getElementById('publicView').style.display = isPrivateView ? 'none' : 'block';
+        document.getElementById('privateView').style.display = isPrivateView ? 'block' : 'none';
+        document.getElementById('viewToggleBtn').innerText = isPrivateView 
+            ? '👁️ Switch to Recognition Display' 
+            : '🔒 Switch to Private Teacher Console';
+    }
+
+    function incrementStudent(index) {
+        const currentList = state.classes[activeClassKey].students;
+        currentList[index].count += 1;
+        saveData();
+    }
+
+    function decrementStudent(index, event) {
+        if (event) event.stopPropagation();
+        const currentList = state.classes[activeClassKey].students;
+        if (currentList[index].count > 0) {
+            currentList[index].count -= 1;
+            if (currentList[index].count === 0) {
+                currentList[index].aboveBeyond = false;
+            }
+            saveData();
+        }
+    }
+
+    function toggleStatus(index, field) {
+        const currentList = state.classes[activeClassKey].students;
+        currentList[index][field] = !currentList[index][field];
+        saveData();
+    }
+
+    function resetStudentInterventions(index) {
+        const student = state.classes[activeClassKey].students[index];
+        student.warning = false;
+        student.removed = false;
+        student.restorativeChat = false;
+        student.privatePractice = false;
+        student.count = 0;
+        student.aboveBeyond = false;
+        saveData();
+    }
+
+    function resetClassPoints() {
+        if (confirm("Reset points and interventions for " + activeClassKey + " for a new week?")) {
+            state.classes[activeClassKey].students.forEach(s => {
+                s.count = 0;
+                s.aboveBeyond = false;
+                s.warning = false;
+                s.removed = false;
+                s.restorativeChat = false;
+                s.privatePractice = false;
+            });
+            saveData();
+        }
+    }
+
+    function render() {
+        const currentClassObj = state.classes[activeClassKey];
+
+        // Render Goal Banner & Dropdown state specific to the active class
+        document.getElementById('displayGoalTitle').innerText = currentClassObj.goalTitle;
+        document.getElementById('displayGoalDesc').innerText = currentClassObj.goalDesc;
+        document.getElementById('goalPresetSelect').value = currentClassObj.selectedPresetKey || 'custom';
+        
+        document.getElementById('inputGoalTitle').value = currentClassObj.goalTitle;
+        document.getElementById('inputGoalDesc').value = currentClassObj.goalDesc;
+
+        const currentStudents = currentClassObj.students || [];
+
+        // Check current day of week (0=Sunday, 4=Thursday, 5=Friday)
+        const currentDay = new Date().getDay();
+        const isLateInWeek = (currentDay === 4 || currentDay === 5);
+
+        const pendingTitle = document.getElementById('pendingSectionTitle');
+        if (isLateInWeek) {
+            pendingTitle.innerText = "⚠️ Needs Focus Before End of Week";
+            pendingTitle.style.color = "#c2410c";
+        } else {
+            pendingTitle.innerText = "💬 Working Towards Goal";
+            pendingTitle.style.color = "#64748b";
+        }
+
+        // Render Public Grid
+        const mainGrid = document.getElementById('publicGrid');
+        const unclickedGrid = document.getElementById('unclickedGrid');
+        mainGrid.innerHTML = '';
+        unclickedGrid.innerHTML = '';
+
+        currentStudents.forEach((s, idx) => {
+            const card = document.createElement('div');
+            card.onclick = () => incrementStudent(idx);
+
+            let classes = ['student-card-public'];
+            let badgeHtml = '';
+
+            if (s.aboveBeyond) {
+                classes.push('above-beyond');
+                badgeHtml = `<span class="badge badge-ab">⭐ Above & Beyond</span>`;
+            } else if (s.count > 0) {
+                classes.push('target-met');
+                badgeHtml = `<span class="badge badge-target">✓ Target Met (${s.count})</span>`;
+            } else {
+                if (isLateInWeek) {
+                    classes.push('needs-focus-orange');
+                    badgeHtml = `<span class="badge badge-orange">⚠️ Needs Focus</span>`;
+                } else {
+                    classes.push('not-yet');
+                    badgeHtml = `<span class="badge badge-notyet">Not Yet Recognized</span>`;
+                }
+            }
+
+            card.className = classes.join(' ');
+            
+            const minusBtnHtml = (s.count > 0 || s.aboveBeyond) 
+                ? `<button class="minus-btn-public" title="Subtract 1 / Fix mistake" onclick="decrementStudent(${idx}, event)">−</button>` 
+                : '';
+
+            card.innerHTML = `
+                ${minusBtnHtml}
+                <div class="student-name">${s.name}</div>
+                <div class="badge-container">${badgeHtml}</div>
+            `;
+
+            if (s.count > 0 || s.aboveBeyond) {
+                mainGrid.appendChild(card);
+            } else {
+                unclickedGrid.appendChild(card);
+            }
+        });
+
+        // Render Private Table
+        const tbody = document.getElementById('privateTableBody');
+        tbody.innerHTML = '';
+
+        currentStudents.forEach((s, idx) => {
+            let statusPills = [];
+            if (s.warning) statusPills.push('<span class="status-pill st-warning">Warning</span>');
+            if (s.removed) statusPills.push('<span class="status-pill st-removed">Removed</span>');
+            if (s.restorativeChat) statusPills.push('<span class="status-pill st-chat">Restorative Chat</span>');
+            if (s.privatePractice) statusPills.push('<span class="status-pill st-practice">Private Practice</span>');
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><b>${s.name}</b></td>
+                <td>
+                    <button class="btn-action" style="background:#bbf7d0; color:#166534;" onclick="incrementStudent(${idx})">+ Point (${s.count})</button>
+                    <button class="btn-action" style="background:#f1f5f9; color:#475569;" onclick="decrementStudent(${idx}, null)">- Subtract</button>
+                    <button class="btn-action" style="background:#fef3c7; color:#92400e;" onclick="toggleStatus(${idx}, 'aboveBeyond')">${s.aboveBeyond ? '⭐ Above & Beyond' : '+ Above & Beyond'}</button>
+                </td>
+                <td>${statusPills.length > 0 ? statusPills.join(' ') : '<span style="color:#94a3b8;">On Track</span>'}</td>
+                <td>
+                    <button class="btn-action btn-warn" onclick="toggleStatus(${idx}, 'warning')">Warning</button>
+                    <button class="btn-action btn-remove" onclick="toggleStatus(${idx}, 'removed')">Removal</button>
+                    <button class="btn-action btn-chat" onclick="toggleStatus(${idx}, 'restorativeChat')">Restorative Chat</button>
+                    <button class="btn-action btn-practice" onclick="toggleStatus(${idx}, 'privatePractice')">Private Practice</button>
+                </td>
+                <td>
+                    <button class="btn-action" onclick="resetStudentInterventions(${idx})">Reset All</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    render();
+</script>
+
+</body>
+</html>
